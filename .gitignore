@@ -1,0 +1,10 @@
+# macOS files
+.DS_Store
+__MACOSX/
+
+# PyCharm files
+.idea/
+__pycache__
+
+# experimentation stuff
+playbox.py

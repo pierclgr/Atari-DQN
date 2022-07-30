@@ -4,13 +4,13 @@ from typing import Type
 
 import gym
 import torch
-from src.models import RLNN
+from src.models import ReinforcementLearningNN
 
 
 # TODO documentation
 
 # define a superclass "Agent" for all the possible Agents; this will act as an interface for the other classes
-class Agent(ABC):
+class ReinforcementLearningAgent(ABC):
     """
     A class representing an agent interface for other agents
     """
@@ -42,7 +42,7 @@ class Agent(ABC):
 
 
 # define a class "RandomAgent" which is an agent following the random action selection policy
-class RandomAgent(Agent):
+class RandomAgent(ReinforcementLearningAgent):
     """
     A class representing an agent that follows random action selection policy
     """
@@ -68,11 +68,12 @@ class RandomAgent(Agent):
 
 
 # create an agent that plays by following DQN algorithm
-class DQNAgent(Agent):
-    def __init__(self, env: gym.Env, model: Type[RLNN]) -> None:
+class DQNAgent(ReinforcementLearningAgent):
+    def __init__(self, env: gym.Env, model: Type[ReinforcementLearningNN]) -> None:
         super(DQNAgent, self).__init__(env)
         self.model = model(self.action_space_size, self.observation_space_shape)
 
     def select_action(self, state: torch.Tensor) -> int:
+        # select action by forwarding the state through the neural network
         selected_action = self.model(state)
         return selected_action

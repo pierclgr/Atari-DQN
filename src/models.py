@@ -4,16 +4,20 @@ from abc import ABC, abstractmethod
 
 
 # TODO DOCUMENTATION
-class RLNN(ABC):
+class ReinforcementLearningNN(ABC, nn.Module):
     @abstractmethod
-    def __init__(self, action_space_size: int, observation_space_shape: tuple):
-        super(RLNN, self).__init__()
+    def __init__(self, action_space_size: int, observation_space_shape: tuple) -> None:
+        super(ReinforcementLearningNN, self).__init__()
         self.observation_space_shape = observation_space_shape
         self.action_space_size = action_space_size
 
+    @abstractmethod
+    def forward(self, state: torch.Tensor) -> torch.Tensor:
+        pass
 
-class ToyNN(RLNN, nn.Module):
-    def __init__(self, output_channels: int, input_shape: tuple):
+
+class ToyNN(ReinforcementLearningNN):
+    def __init__(self, output_channels: int, input_shape: tuple) -> None:
         super(ToyNN, self).__init__(output_channels, input_shape)
 
         tensor_shape = (input_shape[2], input_shape[0], input_shape[1])
@@ -39,7 +43,7 @@ class ToyNN(RLNN, nn.Module):
             nn.Linear(out_features=output_channels, in_features=64)
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> None:
         x = self.conv2d1(x)
         x = self.relu1(x)
         x = self.maxpool1(x)

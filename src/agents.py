@@ -4,18 +4,17 @@ from typing import Type
 
 import gym
 import torch
-from src.models import ReinforcementLearningNN
+from src.models import RLNetwork
 
 
 # TODO documentation
 
 # define a superclass "Agent" for all the possible Agents; this will act as an interface for the other classes
-class ReinforcementLearningAgent(ABC):
+class Agent(ABC):
     """
-    A class representing an agent interface for other agents
+    A class representing a generic agent
     """
 
-    @abstractmethod
     def __init__(self, env: gym.Env, *args) -> None:
         """
         Constructor method of the class that initializes the agent with the environment characteristics
@@ -42,9 +41,9 @@ class ReinforcementLearningAgent(ABC):
 
 
 # define a class "RandomAgent" which is an agent following the random action selection policy
-class RandomAgent(ReinforcementLearningAgent):
+class RandomAgent(Agent):
     """
-    A class representing an agent that follows random action selection policy
+    A class representing a reinforcement learning agent that follows random action selection policy
     """
 
     def __init__(self, env: gym.Env) -> None:
@@ -68,12 +67,31 @@ class RandomAgent(ReinforcementLearningAgent):
 
 
 # create an agent that plays by following DQN algorithm
-class DQNAgent(ReinforcementLearningAgent):
-    def __init__(self, env: gym.Env, model: Type[ReinforcementLearningNN]) -> None:
-        super(DQNAgent, self).__init__(env)
-        self.model = model(self.action_space_size, self.observation_space_shape)
+class DQNRLAgent(Agent):
+    """
+    A class representing a reinforcement learning agent that follows the policy learned with DQN agent
+    """
+
+    def __init__(self, env: gym.Env, model: Type[RLNetwork], device: torch.device) -> None:
+        """
+        Constructor method for the class that initializes the environment and the model
+
+        :param env: the gym environment that the agent should interact with (gym.Env)
+        :param model: the class of the model to instantiate, must be a subclass of RLNetwork (type[RLNetwork])
+        """
+        super(DQNRLAgent, self).__init__(env)
+
+        # instantiate the model using the given class and the environment action and observation spaces
+        self.model = model(self.observation_space_shape, self.action_space_size)
+        self.model = self.model.to(device=device)
 
     def select_action(self, state: torch.Tensor) -> int:
+        """
+        Method that selects an action to take from the action space accordingly to the learned policy
+
+        :param state: state of the environment for which to select the action to take (torch.Tensor)
+        :return: action selected from the action space (int)
+        """
         # select action by forwarding the state through the neural network
         selected_action = self.model(state)
         return selected_action

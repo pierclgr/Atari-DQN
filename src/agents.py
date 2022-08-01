@@ -3,6 +3,7 @@ import random
 from typing import Type
 
 import gym
+import numpy as np
 import torch
 from src.models import RLNetwork
 
@@ -26,11 +27,11 @@ class Agent(ABC):
         # set action space size
         self.action_space = env.action_space
         self.observation_space = env.observation_space
-        self.action_space_size = env.action_space.n
+        self.num_actions = env.action_space.n
         self.observation_space_shape = env.observation_space.shape
 
     @abstractmethod
-    def select_action(self, *args) -> int:
+    def get_action(self, *args) -> int:
         """
         Method to select an action from the action space accordingly to a certain policy
 
@@ -39,40 +40,18 @@ class Agent(ABC):
         """
         pass
 
-
-# define a class "RandomAgent" which is an agent following the random action selection policy
-class RandomAgent(Agent):
-    """
-    A class representing a reinforcement learning agent that follows random action selection policy
-    """
-
-    def __init__(self, env: gym.Env) -> None:
-        """
-        Constructor method for the class RandomAgent that just calls the constructor of its superclass Agent
-
-        :param env: the gym environment that the agent should interact with (gym.Env)
-        """
-        super(RandomAgent, self).__init__(env)
-
-    def select_action(self) -> int:
-        """
-        Method that selects an action to take from the action space randomly
-
-        :return: action from the action space selected randomly (int)
-        """
-
-        # select an action randomly from the action space by using the action space size
-        selected_action = random.randint(0, self.action_space_size - 1)
-        return selected_action
+    @abstractmethod
+    def get_values(self, state: torch.Tensor):
+        pass
 
 
-# create an agent that plays by following DQN algorithm
+# create an agent that plays by following a DQN learned policy
 class DQNRLAgent(Agent):
     """
     A class representing a reinforcement learning agent that follows the policy learned with DQN agent
     """
 
-    def __init__(self, env: gym.Env, model: Type[RLNetwork], device: torch.device) -> None:
+    def __init__(self, env: gym.Env, model: Type[RLNetwork]) -> None:
         """
         Constructor method for the class that initializes the environment and the model
 
@@ -81,17 +60,18 @@ class DQNRLAgent(Agent):
         """
         super(DQNRLAgent, self).__init__(env)
 
-        # instantiate the model using the given class and the environment action and observation spaces
-        self.model = model(self.observation_space_shape, self.action_space_size)
-        self.model = self.model.to(device=device)
+        # instantiate the value model using the given class and the environment action and observation spaces
+        self.value_model = model(self.observation_space_shape, self.num_actions)
 
-    def select_action(self, state: torch.Tensor) -> int:
-        """
-        Method that selects an action to take from the action space accordingly to the learned policy
+        # instantiate the target model using the given class and the environment action and observation spaces
+        self.target_model = model(self.observation_space_shape, self.num_actions)
 
-        :param state: state of the environment for which to select the action to take (torch.Tensor)
-        :return: action selected from the action space (int)
-        """
-        # select action by forwarding the state through the neural network
-        selected_action = self.model(state)
-        return selected_action
+    def get_values(self, state: torch.Tensor) -> torch.Tensor:
+        # first, we get the q-values from the network by feeding to it the given state of the environment (the
+        # observation)
+        q_values = self.value_model(state)
+
+        return q_values
+
+    def get_action(self, *args) -> int:
+        pass

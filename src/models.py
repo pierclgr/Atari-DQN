@@ -6,18 +6,19 @@ import operator
 
 # TODO DOCUMENTATION
 class RLNetwork(nn.Module):
-    def __init__(self, observation_space_shape: torch.Size, action_space_size: int) -> None:
+    def __init__(self, observation_space_shape: tuple, action_space_size: int) -> None:
         super(RLNetwork, self).__init__()
+        # convert observation space size to a shape suitable for PyTorch (i.e. (channels, height, width)
         self.observation_space_shape = observation_space_shape
         self.action_space_size = action_space_size
-
         self.network = nn.Sequential()
 
-    def _compute_in_features_linear(self, input_shape: tuple) -> int:
-        dummy_tensor = torch.empty(size=input_shape)
+    def _compute_in_features_linear(self) -> int:
+        dummy_tensor = torch.empty(size=self.observation_space_shape)
         dummy_tensor = self.backbone(dummy_tensor)
+        dummy_tensor = torch.flatten(dummy_tensor, start_dim=1)
 
-        flattened_tensor_dimension = reduce(operator.mul, dummy_tensor.size())
+        flattened_tensor_dimension = dummy_tensor.size()[1]
 
         return flattened_tensor_dimension
 
@@ -26,25 +27,24 @@ class RLNetwork(nn.Module):
         return x
 
 
-class ToyNetwork(RLNetwork):
-    def __init__(self, input_shape: torch.Size, output_channels: int) -> None:
-        super(ToyNetwork, self).__init__(input_shape, output_channels)
-
+class DQNNetwork(RLNetwork):
+    def __init__(self, input_shape: tuple, output_channels: int) -> None:
+        super(DQNNetwork, self).__init__(input_shape, output_channels)
         self.backbone = nn.Sequential(
-            nn.Conv2d(in_channels=input_shape[0], out_channels=256, kernel_size=(3, 3)),
+            nn.Conv2d(in_channels=self.observation_space_shape[1], out_channels=32, kernel_size=(8, 8), stride=(2, 2)),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(2, 2)),
-            nn.Dropout(0.2),
-            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=(3, 3)),
+
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(4, 4), stride=(2, 2)),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(2, 2)),
-            nn.Dropout(0.2)
+
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(3, 3), stride=(1, 1)),
+            nn.ReLU()
         )
 
         self.dense = nn.Sequential(
-            nn.Flatten(start_dim=0),
-            nn.Linear(out_features=64, in_features=super(ToyNetwork, self)._compute_in_features_linear(input_shape)),
-            nn.Linear(out_features=output_channels, in_features=64)
+            nn.Flatten(),
+            nn.Linear(out_features=512, in_features=super(DQNNetwork, self)._compute_in_features_linear()),
+            nn.Linear(out_features=self.action_space_size, in_features=512)
         )
 
         self.network = nn.Sequential(
@@ -53,8 +53,8 @@ class ToyNetwork(RLNetwork):
         )
 
 
-model = ToyNetwork(torch.Size((3, 210, 160)), 18)
-dummy_tensor = torch.empty(size=(3, 210, 160))
-print(dummy_tensor.size())
-dummy_tensor = model.forward(dummy_tensor)
-print(dummy_tensor.size())
+if __name__ == "__main__":
+    x = torch.empty(size=(2, 4, 64, 64))
+
+    model = DQNNetwork(x.shape, 4)
+    x = model(x)

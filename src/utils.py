@@ -4,6 +4,19 @@ import torch
 import os
 
 
+class StateTransition(object):
+    def __init__(self, state: np.ndarray, action: int, reward: float, next_state: np.ndarray, done: bool):
+        self.state = state
+        self.action = action
+        self.reward = reward
+        self.next_state = next_state
+        self.done = done
+
+    def __repr__(self) -> str:
+        return f"StateTransition(state: {self.state}, action: {self.action}, reward: {self.reward}, " \
+               f"next_state: {self.next_state}, done: {self.done})"
+
+
 def set_seeds(seed: int = 1507) -> None:
     """
     Method to set the seeds of random components to allow reproducibility

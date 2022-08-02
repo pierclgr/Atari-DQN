@@ -8,3 +8,6 @@ __pycache__
 
 # experimentation stuff
 playbox.py
+
+# wandb
+wandb/

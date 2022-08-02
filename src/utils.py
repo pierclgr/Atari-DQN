@@ -5,6 +5,13 @@ import numpy as np
 import torch
 import os
 
+import random
+import string
+
+
+def random_string(chars=string.ascii_letters + string.digits, num_char=5):
+    return ''.join(random.choice(chars) for _ in range(num_char))
+
 
 class StateTransition(object):
     def __init__(self, state: Any, action: Any, reward: Any, next_state: Any, done: Any):

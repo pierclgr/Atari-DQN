@@ -1,11 +1,13 @@
 import random
+from typing import Any
+
 import numpy as np
 import torch
 import os
 
 
 class StateTransition(object):
-    def __init__(self, state: np.ndarray, action: int, reward: float, next_state: np.ndarray, done: bool):
+    def __init__(self, state: Any, action: Any, reward: Any, next_state: Any, done: Any):
         self.state = state
         self.action = action
         self.reward = reward

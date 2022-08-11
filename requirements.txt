@@ -1,4 +1,3 @@
--e git+ssh://git@github.com/pierclgr/AAS_project.git@e6d04be29864479e3a82be4708155187dc083a86#egg=aas_project
 ale-py==0.7.5
 antlr4-python3-runtime==4.9.3
 appnope==0.1.3

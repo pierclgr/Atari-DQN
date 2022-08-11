@@ -80,7 +80,7 @@ def trainer(config: DictConfig) -> None:
 
         # Instantiate the recorder wrapper around gym's environment to record and
         # visualize the environment
-        env = Recorder(env, directory=f'{config.home_directory}video')
+        env = Recorder(env, directory=f'{config.home_directory}video/train')
 
     # initialize the agent
     agent = DQNAgent(env=env, device=device, q_function=model, buffer_capacity=config.buffer_capacity,

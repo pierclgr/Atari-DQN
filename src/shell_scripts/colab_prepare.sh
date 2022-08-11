@@ -20,4 +20,3 @@ python -m atari_py.import_roms "roms/"
 # remove roms
 rm -r "roms/"
 rm "Roms.rar"
-

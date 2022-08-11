@@ -18,5 +18,5 @@ env_name: BreakoutNoFrameskip-v4
 model: DQNNetwork
 output_model_file: breakout_final_model
 logging: false
-num_testing_episodes: 2
+num_testing_episodes: 1
 in_colab: false

@@ -61,12 +61,7 @@ def tester(config: DictConfig):
     agent.load(config.output_model_file)
 
     # test the agent
-    agent.test()
-
-    # if in colab
-    if in_colab:
-        # play the game video
-        env.play()
+    agent.test(in_colab=in_colab)
 
     # close the environment
     env.close()

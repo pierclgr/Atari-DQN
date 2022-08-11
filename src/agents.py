@@ -371,7 +371,7 @@ class DQNAgent(Agent):
             cur_episode += 1
         print("Done.")
 
-    def test(self):
+    def test(self, in_colab: bool = False):
         # set the two networks to eval mode
         self.q_function.eval()
         self.target_q_function.eval()
@@ -431,6 +431,12 @@ class DQNAgent(Agent):
                     f"episode_reward: {episode_reward}, average_reward: {average_reward}")
 
                 cur_episode += 1
+
+            # if in colab
+            if in_colab:
+                # play the game video
+                self.env.play()
+
             print("Done.")
 
     def save(self, filename: str):

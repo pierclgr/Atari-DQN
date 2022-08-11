@@ -3,8 +3,12 @@ echo "Installing packages for colab..."
 # install repo package
 cd /content/Atari-Deep-RL
 pip install -e .
-pip install -r requirements.txt
 cd /content/
+
+pip install pyglet
+pip install pyvirtualdisplay
+pip install -U colabgymrender
+pip install gym[atari]
 
 # install x11-utils
 apt-get install x11-utils

@@ -98,7 +98,7 @@ def trainer(config: DictConfig) -> None:
                      target_update_steps=config.c, logger=logger, eps_max=config.eps_max, eps_min=config.eps_min,
                      eps_decay_steps=config.eps_decay_steps, checkpoint_every=config.checkpoint_every,
                      home_directory=config.home_directory, seed=config.train_seed, testing_seed=config.test_seed,
-                     max_steps_per_episode=config.max_steps_per_episode)
+                     max_steps_per_episode=config.max_steps_per_episode, learning_rate=config.lr)
 
     # train the environment
     agent.train()

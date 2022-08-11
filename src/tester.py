@@ -56,7 +56,8 @@ def tester(config: DictConfig):
                      target_update_steps=config.c, logger=None, eps_max=config.eps_max, eps_min=config.eps_min,
                      eps_decay_steps=config.eps_decay_steps, checkpoint_every=config.checkpoint_every,
                      home_directory=config.home_directory, seed=config.train_seed, testing_seed=config.test_seed,
-                     checkpoint_file=config.checkpoint_file)
+                     checkpoint_file=config.checkpoint_file, max_steps_per_episode=config.max_steps_per_episode,
+                     learning_rate=config.lr)
 
     # load the trained model
     agent.load(config.output_model_file)

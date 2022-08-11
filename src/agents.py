@@ -45,20 +45,20 @@ class DQNAgent(Agent):
                  testing_seed: int,
                  home_directory: str,
                  checkpoint_file: str,
-                 buffer_capacity: int = 1000000,
-                 num_episodes: int = 100,
-                 batch_size: int = 32,
-                 eps_max: float = 1,
-                 eps_min: float = 0.01,
-                 eps_decay_steps: float = 1000000,
-                 discount_rate: float = 0.90,
-                 target_update_steps: int = 500,
-                 learning_rate: float = 0.00025,
+                 buffer_capacity: int,
+                 num_episodes: int,
+                 batch_size: int,
+                 eps_max: float,
+                 eps_min: float,
+                 eps_decay_steps: int,
+                 discount_rate: float,
+                 target_update_steps: int,
+                 learning_rate: float,
+                 checkpoint_every: int,
+                 max_steps_per_episode: int,
                  criterion: nn.Module = None,
                  optimizer: torch.optim.Optimizer = None,
-                 logger: Logger = None,
-                 checkpoint_every: int = 10,
-                 max_steps_per_episode: int = 10000
+                 logger: Logger = None
                  ) -> None:
 
         self.env = env
@@ -206,9 +206,11 @@ class DQNAgent(Agent):
             # if logging is required, we update it at the end of every episode
             if self.logger:
                 self.logger.log("train_loss", train_loss, cur_episode)
-                self.logger.log("eps", eps, cur_episode)
+                self.logger.log("eps", self.eps, cur_episode)
                 self.logger.log("episode_reward", episode_reward, cur_episode)
                 self.logger.log("average_reward", average_reward, cur_episode)
+                self.logger.log("test_episode_reward", test_episode_reward, cur_episode)
+                self.logger.log("test_average_reward", test_average_reward, cur_episode)
 
             # for each episode
             print(f"Training for {max(0, self.num_episodes - cur_episode - 1)} episodes...")

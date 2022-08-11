@@ -5,6 +5,7 @@ cd /content/Atari-Deep-RL
 pip install -e .
 cd /content/
 
+pip install imageio-ffmpeg
 pip install pyglet
 pip install pyvirtualdisplay
 pip install -U colabgymrender

@@ -3,7 +3,7 @@ preprocessing:
   n_frames_per_state: 4
   patch_size: 84
   grayscale: true
-buffer_capacity: 100000
+buffer_capacity: 10000
 num_episodes: 500
 batch_size: 32
 eps_max: 1
@@ -18,7 +18,7 @@ env_name: BreakoutNoFrameskip-v4
 checkpoint_file: breakout_checkpoint
 model: DQNNetwork
 output_model_file: breakout_final_model
-max_steps_per_episode: 100000
+max_steps_per_episode: 10000
 logging: true
 in_colab: true
 train_seed: 1507

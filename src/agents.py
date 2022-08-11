@@ -128,7 +128,7 @@ class DQNAgent(Agent):
                     # while the current episode is not done
                     while not done and not full:
                         # select an action to perform randomly, using eps=1 to select the action only randomly
-                        action = self.get_action(previous_state, eps=1, train=True)
+                        action = self.get_action(previous_state, eps=1, train=False)
 
                         # perform the selected action and get the new state
                         current_state, reward, done, info = self.env.step(action)

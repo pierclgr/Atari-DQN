@@ -1,8 +1,7 @@
 import os
 import pprint
 
-from colabgymrender.recorder import Recorder
-from pyvirtualdisplay import Display
+from gym.wrappers import RecordVideo
 
 from src.agents import DQNAgent
 import importlib
@@ -16,8 +15,6 @@ from omegaconf import DictConfig
 
 @hydra.main(version_base=None, config_path="../config/", config_name="breakout")
 def trainer(config: DictConfig) -> None:
-    in_colab = config.in_colab
-
     # get the device
     device = get_device()
 
@@ -70,7 +67,7 @@ def trainer(config: DictConfig) -> None:
     train_env = gym.wrappers.FrameStack(train_env, num_stack=config.preprocessing.n_frames_per_state)
 
     # create the testing environment
-    test_env = gym.make(config.env_name, obs_type="rgb")
+    test_env = gym.make(config.env_name, obs_type="rgb", render_fps=60)
 
     # apply Atari preprocessing
     test_env = gym.wrappers.AtariPreprocessing(test_env,
@@ -80,13 +77,9 @@ def trainer(config: DictConfig) -> None:
                                                grayscale_obs=config.preprocessing.grayscale)
     test_env = gym.wrappers.FrameStack(test_env, num_stack=config.preprocessing.n_frames_per_state)
 
-    if in_colab:
-        # Set up display for visualization
-        Display(visible=False, size=(400, 300)).start()
-
-        # Instantiate the recorder wrapper around gym's environment to record and
-        # visualize the environment
-        test_env = Recorder(test_env, directory=f'{config.home_directory}video')
+    # Instantiate the recorder wrapper around gym's environment to record and
+    # visualize the environment
+    test_env = RecordVideo(test_env, video_folder=f'{config.home_directory}video')
 
     # import specified model
     model = getattr(importlib.import_module("src.models"), config.model)

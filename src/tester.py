@@ -44,6 +44,7 @@ def tester(config: DictConfig):
 
         # Instantiate the recorder wrapper around gym's environment to record and
         # visualize the environment
+        os.makedirs(f'{config.home_directory}video/test')
         env = Recorder(env, directory=f'{config.home_directory}video/test')
 
     # initialize the agent

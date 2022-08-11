@@ -1,3 +1,4 @@
+import os
 import pprint
 
 from colabgymrender.recorder import Recorder
@@ -79,7 +80,8 @@ def trainer(config: DictConfig) -> None:
         Display(visible=False, size=(400, 300)).start()
 
         # Instantiate the recorder wrapper around gym's environment to record and
-        # visualize the environment
+        # visualize the environment+
+        os.makedirs(f'{config.home_directory}video/train')
         env = Recorder(env, directory=f'{config.home_directory}video/train')
 
     # initialize the agent

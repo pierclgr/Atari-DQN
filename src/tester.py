@@ -15,7 +15,7 @@ from src.utils import get_device
 @hydra.main(version_base=None, config_path="../config/", config_name="breakout")
 def tester(config: DictConfig):
     # check if we're running in colab
-    in_colab = 'google.colab' in sys.modules
+    in_colab = config.in_colab
 
     # get the device
     device = get_device()

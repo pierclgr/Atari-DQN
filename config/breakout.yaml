@@ -19,3 +19,4 @@ model: DQNNetwork
 output_model_file: breakout_final_model
 logging: false
 num_testing_episodes: 2
+in_colab: false

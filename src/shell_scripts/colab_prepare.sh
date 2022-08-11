@@ -17,9 +17,9 @@ apt-get install x11-utils
 apt-get install -y xvfb python-opengl ffmpeg
 
 # download atari roms from the web and copy them to gym folder
-wget http://www.atarimania.com/roms/Roms.rar
-unrar x -Y "Roms.rar" "roms/"
-python -m atari_py.import_roms "roms/"
+wget http://www.atarimania.com/roms/Roms.rar -P /content/
+unrar x -Y "/content/Roms.rar" "/content/roms/"
+python -m atari_py.import_roms "/content/roms/"
 
 # remove roms
 rm -r "roms/"

@@ -12,14 +12,14 @@ eps_decay_steps: 1000000
 gamma: 0.90  # discount factor
 c: 500  # num steps after which to do target update
 lr: 0.00025
-checkpoint_every: 2
+checkpoint_every: 50
 home_directory: /Users/pierclgr/PycharmProjects/AAS_project/
 env_name: BreakoutNoFrameskip-v4
 checkpoint_file: breakout_checkpoint
 model: DQNNetwork
 output_model_file: breakout_final_model
 max_steps_per_episode: 100000
-logging: false
-in_colab: false
+logging: true
+in_colab: true
 train_seed: 1507
 test_seed: 2307

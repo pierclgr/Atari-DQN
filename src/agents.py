@@ -421,9 +421,10 @@ class DQNAgent(Agent):
 
             # while the episode is not done
             while not done:
-                # select an action to perform based on the agent policy using eps=0 to use exploitation (the learned
-                # policy)
-                action = self.get_action(previous_state, eps=0, train=False)
+                # select an action to perform based on the agent policy using eps=eps_min to use the agent as if we were
+                # using the lowest possible eps, meaning that most of the times we're acting accordingly to the learned
+                # policy
+                action = self.get_action(previous_state, eps=self.eps_min, train=False)
 
                 # perform the selected action and get the new state
                 current_state, reward, done, info = self.testing_env.step(action)

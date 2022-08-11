@@ -44,7 +44,7 @@ def set_seeds(seed: int = 1507) -> None:
     torch.manual_seed(seed)
 
 
-def get_device() -> str:
+def get_device() -> torch.device:
     """
     Get the current machine device to use
 
@@ -74,6 +74,6 @@ def get_device() -> str:
             output = stream.read()
             print(output)
 
-    print(f">>> Using {device} device")
+    print(f"Using {device} device...")
 
     return device

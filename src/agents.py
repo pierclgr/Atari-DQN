@@ -1,9 +1,11 @@
+import glob
+import os
 from abc import ABC, abstractmethod
 import random
 
 from copy import deepcopy
 from src.logger import Logger
-from typing import Type, Tuple, Callable
+from typing import Type, Tuple, Callable, Optional
 
 import gym
 import numpy as np
@@ -13,6 +15,8 @@ from tqdm.auto import tqdm
 
 from src.models import RLNetwork, DQNNetwork
 from src.buffers import ReplayBuffer
+
+from natsort import natsorted
 
 # TODO documentation
 
@@ -36,6 +40,7 @@ class DQNAgent(Agent):
                  env: gym.Env,
                  q_function: Type[RLNetwork],
                  device: torch.device,
+                 home_directory: str,
                  buffer_capacity: int = 1000000,
                  num_episodes: int = 100,
                  batch_size: int = 32,
@@ -47,7 +52,9 @@ class DQNAgent(Agent):
                  learning_rate: float = 0.00025,
                  criterion: nn.Module = None,
                  optimizer: torch.optim.Optimizer = None,
-                 logger: Logger = None) -> None:
+                 logger: Logger = None,
+                 checkpoint_every: int = 10,
+                 num_testing_episodes: int = 1) -> None:
 
         self.env = env
         self.num_episodes = num_episodes
@@ -60,18 +67,16 @@ class DQNAgent(Agent):
         self.discount_rate = discount_rate
         self.target_update_steps = target_update_steps
         self.learning_rate = learning_rate
-
         self.logger = logger
+        self.checkpoint_every = checkpoint_every
+        self.num_testing_episodes = num_testing_episodes
+        self.home_directory = home_directory
 
-        # initialize replay buffer
         self.replay_buffer = ReplayBuffer(capacity=buffer_capacity)
 
-        # initialize action-value function with random weights
-        print("Initializing action-value function with random weights...")
         self.q_function = q_function(input_shape=env.observation_space.shape,
                                      output_channels=env.action_space.n).to(device=self.device)
 
-        print("Initializing target action-value function with the same weights of the action-value function...")
         self.target_q_function = q_function(input_shape=env.observation_space.shape,
                                             output_channels=env.action_space.n).to(device=self.device)
         self.target_q_function.load_state_dict(self.q_function.state_dict())
@@ -85,12 +90,6 @@ class DQNAgent(Agent):
             optimizer = torch.optim.RMSprop(self.q_function.parameters(), lr=self.learning_rate)
 
         self.optimizer = optimizer
-
-        # initialize replay buffer to specified capacity by following the agent policy and setting the q_function
-        # network to eval mode to avoid any training; at the same time, we use torch.no_grad to avoid gradient
-        # computation
-        print(f"Initializing replay buffer with {self.replay_buffer.capacity} samples...")
-        self.initialize_experience()
 
     def initialize_experience(self, n_samples: int = None):
         self.q_function.eval()
@@ -117,8 +116,8 @@ class DQNAgent(Agent):
 
                     # while the current episode is not done
                     while not done and not full:
-                        # select an action to perform based on the agent policy
-                        action = self.get_action(previous_state)
+                        # select an action to perform randomly, using eps=1 to select the action only randomly
+                        action = self.get_action(previous_state, eps=1, train=True)
 
                         # perform the selected action and get the new state
                         current_state, reward, done, info = self.env.step(action)
@@ -173,18 +172,48 @@ class DQNAgent(Agent):
         self.q_function.train()
         self.target_q_function.eval()
 
-        # for each episode
-        print(f"Training for {self.num_episodes} episodes...")
-        num_steps = 0
-        episodes_rewards = []
-        total_reward = 0
-        for _ in tqdm(range(self.num_episodes)):
-            # append total reward to the list of episodes rewards
-            episodes_rewards.append(total_reward)
-
-            # set total reward for the new episode to 0
+        # load checkpoint if any
+        checkpoint_info = self.checkpoint_load()
+        if not checkpoint_info:
+            total_steps = 0
             total_reward = 0
+            cur_episode = 0
 
+            # initialize replay buffer to specified capacity by following the agent policy and setting the q_function
+            # network to eval mode to avoid any training; at the same time, we use torch.no_grad to avoid gradient
+            # computation
+            print(f"Initializing replay buffer with {self.replay_buffer.capacity} samples...")
+            self.initialize_experience()
+
+            # for each episode
+            print(f"Training for {self.num_episodes} episodes...")
+        else:
+            cur_episode, train_loss, average_reward, episode_reward, eps, total_reward, total_steps = checkpoint_info
+            print("Model, optimizer and replay buffer loaded from checkpoint.")
+            print(f"Loaded checkpoint:\n"
+                  f"\t- episode: {cur_episode + 1}\n"
+                  f"\t- train_loss: {train_loss}\n"
+                  f"\t- average_reward: {average_reward}\n"
+                  f"\t- episode_reward: {episode_reward}\n"
+                  f"\t- total_reward: {total_reward}\n"
+                  f"\t- eps: {eps}\n"
+                  f"\t- total_steps: {total_steps}")
+
+            # if logging is required, we update it at the end of every episode
+            if self.logger:
+                self.logger.log("train_loss", train_loss, cur_episode)
+                self.logger.log("eps", eps, cur_episode)
+                self.logger.log("episode_reward", episode_reward, cur_episode)
+                self.logger.log("average_reward", average_reward, cur_episode)
+
+            # for each episode
+            print(f"Training for {max(0, self.num_episodes - cur_episode - 1)} episodes...")
+
+            # start episode from following episode
+            cur_episode += 1
+
+        while cur_episode < self.num_episodes:
+            print(f"Episode {cur_episode + 1}...")
             # reset the environment and get the initial state to start a new episode
             previous_state = self.env.reset()
 
@@ -195,22 +224,23 @@ class DQNAgent(Agent):
             # to float tensor
             previous_state = torch.as_tensor(previous_state).unsqueeze(axis=0).float().to(self.device)
             done = False
+            episode_reward = 0
+            episode_loss = 0
+            episode_steps = 0
 
             # while the episode is not done
             while not done:
                 # decay eps accordingly to the current number of steps
-                self.eps_decay(num_steps)
+                self.eps_decay(total_steps)
 
                 # select an action to perform based on the agent policy
-                self.q_function.eval()
-                action = self.get_action(previous_state)
-                self.q_function.train()
+                action = self.get_action(previous_state, train=True)
 
                 # perform the selected action and get the new state
                 current_state, reward, done, info = self.env.step(action)
 
-                # add the reward to the total reward
-                total_reward += reward
+                # add the reward to the total reward of the current episode
+                episode_reward += reward
 
                 # convert the new state to numpy array
                 current_state = np.asarray(current_state)
@@ -291,34 +321,203 @@ class DQNAgent(Agent):
                 loss.backward()
                 self.optimizer.step()
 
-                num_steps += 1
+                # add the loss to the total loss of the episode
+                episode_loss += loss.detach().item()
 
-                # if logging is required, we update it at every training step
-                if self.logger:
-                    self.logger.log("train_loss", loss.detach().item(), num_steps)
-                    self.logger.log("eps", self.eps, num_steps)
-                    self.logger.log("average_reward", float(np.mean(episodes_rewards)), num_steps)
+                # increment the episode steps and the total steps
+                total_steps += 1
+                episode_steps += 1
 
                 # every C gradient descent steps, we need to reset the target_q_function weights by setting its weights
                 # to the weights of the q_function
-                if num_steps % self.target_update_steps == 0:
+                if total_steps % self.target_update_steps == 0:
                     self.target_q_function.load_state_dict(self.q_function.state_dict())
 
-    def evaluate(self):
-        pass
+            # add the episode reward to the average reward
+            total_reward += episode_reward
 
-    def get_action(self, state) -> int:
+            # compute average reward for the current episode
+            average_reward = total_reward / (cur_episode + 1)
+
+            # compute average training loss for this episode
+            train_loss = episode_loss / episode_steps
+
+            # if logging is required, we update it at the end of every episode
+            if self.logger:
+                self.logger.log("train_loss", train_loss, cur_episode)
+                self.logger.log("eps", self.eps, cur_episode)
+                self.logger.log("episode_reward", episode_reward, cur_episode)
+                self.logger.log("average_reward", average_reward, cur_episode)
+
+            print(f"train_loss: {train_loss}, eps: {self.eps}, episode_reward: {episode_reward}, "
+                  f"average_reward: {average_reward}")
+
+            # checkpoint the training every defined steps
+            if (cur_episode + 1) % self.checkpoint_every == 0:
+                print(f"Checkpointing model at episode {cur_episode + 1}...")
+                checkpoint_info = {'episode': cur_episode,
+                                   'train_loss': train_loss,
+                                   'average_reward': average_reward,
+                                   'episode_reward': episode_reward,
+                                   'total_reward': total_reward,
+                                   'total_steps': total_steps,
+                                   'eps': self.eps}
+
+                filename = f"checkpoint_episode_{cur_episode + 1}"
+
+                # checkpoint the training
+                self.checkpoint_save(filename=filename, checkpoint=checkpoint_info)
+
+            cur_episode += 1
+        print("Done.")
+
+    def test(self):
+        # set the two networks to eval mode
+        self.q_function.eval()
+        self.target_q_function.eval()
+
+        with torch.no_grad():
+            print(f"Testing for {self.num_testing_episodes} episodes...")
+
+            cur_episode = 0
+            total_steps = 0
+            total_reward = 0
+            while cur_episode < self.num_testing_episodes:
+                print(f"Episode {cur_episode + 1}...")
+                # reset the environment and get the initial state to start a new episode
+                previous_state = self.env.reset()
+
+                # convert the initial state to np array
+                previous_state = np.asarray(previous_state)
+
+                # convert the initial state to torch tensor, unsqueeze it to feed it as a sample to the network and cast
+                # to float tensor
+                previous_state = torch.as_tensor(previous_state).unsqueeze(axis=0).float().to(self.device)
+                done = False
+                episode_reward = 0
+
+                # while the episode is not done
+                while not done:
+                    # select an action to perform based on the agent policy using eps=0 to use exploitation (the learned
+                    # policy)
+                    action = self.get_action(previous_state, eps=0, train=False)
+
+                    # perform the selected action and get the new state
+                    current_state, reward, done, info = self.env.step(action)
+
+                    # add the reward to the total reward of the current episode
+                    episode_reward += reward
+
+                    # convert the new state to numpy array
+                    current_state = np.asarray(current_state)
+
+                    # convert the initial state to torch tensor and cast to float tensor
+                    current_state = torch.as_tensor(current_state).float().to(self.device)
+
+                    # set the next previous state to the current one and unsqueeze it to feed it as a sample to the
+                    # network
+                    previous_state = current_state.unsqueeze(axis=0)
+
+                    # increment the episode steps and the total steps
+                    total_steps += 1
+
+                # add the episode reward to the average reward
+                total_reward += episode_reward
+
+                # compute average reward for the current episode
+                average_reward = total_reward / (cur_episode + 1)
+
+                print(
+                    f"episode_reward: {episode_reward}, average_reward: {average_reward}")
+
+                cur_episode += 1
+            print("Done.")
+
+    def save(self, filename: str):
+        print("Saving trained model..")
+        trained_model_path = f"{self.home_directory}trained_models/"
+        if not os.path.isdir(trained_model_path):
+            os.makedirs(trained_model_path)
+        file_path = f"{trained_model_path}{filename}.pt"
+
+        # save network weights
+        torch.save(self.q_function.state_dict(), file_path)
+
+    def checkpoint_save(self, filename: str, checkpoint: dict):
+        checkpoint_path = f"{self.home_directory}trained_models/checkpoints/"
+        if not os.path.isdir(checkpoint_path):
+            os.makedirs(checkpoint_path)
+        file_path = f"{checkpoint_path}{filename}.pt"
+
+        checkpoint['model_weights'] = self.q_function.state_dict()
+        checkpoint['optimizer_weights'] = self.optimizer.state_dict()
+        checkpoint['replay_buffer'] = self.replay_buffer
+
+        # save the checkpoint info
+        torch.save(checkpoint, file_path)
+
+    def load(self, filename: str) -> None:
+        filename = f"{filename}.pt"
+        trained_model_path = f"{self.home_directory}trained_models/"
+        if os.path.isdir(trained_model_path):
+            file_path = f"{trained_model_path}{filename}"
+            if os.path.isfile(file_path):
+                print(f"Loading model from {filename}...")
+                model = torch.load(file_path)
+                self.q_function.load_state_dict(model)
+            else:
+                print("The specified file does not exist in the trained models directory.")
+        else:
+            print("The directory of the trained models does not exist.")
+
+    def checkpoint_load(self) -> Optional[tuple]:
+        checkpoint_path = f"{self.home_directory}trained_models/checkpoints/"
+        # if the folder with checkpoints exists and is not empty
+        if os.path.isdir(checkpoint_path) and not len(os.listdir(checkpoint_path)) is 0:
+            # define file path as the latest available checkpoint
+            sorted_checkpoint_files = natsorted(glob.glob(f'{checkpoint_path}*.pt'))
+            latest_checkpoint_file = sorted_checkpoint_files[-1]
+
+            # load information saved in the file
+            model = torch.load(latest_checkpoint_file)
+
+            # load all checkpoint informations
+            self.q_function.load_state_dict(model['model_weights'])
+            self.optimizer.load_state_dict(model['optimizer_weights'])
+            self.replay_buffer = model['replay_buffer']
+            episode = model['episode']
+            train_loss = model['train_loss']
+            average_reward = model['average_reward']
+            episode_reward = model['episode_reward']
+            eps = model['eps']
+            total_reward = model['total_reward']
+            total_steps = model['total_steps']
+
+            return episode, train_loss, average_reward, episode_reward, eps, total_reward, total_steps
+        else:
+            print("No checkpoint file found. Training is starting from the beginning...")
+            return None
+
+    def get_action(self, state, eps=None, train: bool = True) -> int:
+        if eps is None:
+            eps = self.eps
+
         # select if to explore or exploit accordingly to epsilon probability
-        explore = random.choices([True, False], weights=[self.eps, 1 - self.eps], k=1)[0]
+        explore = random.choices([True, False], weights=[eps, 1 - eps], k=1)[0]
 
         # select if to explore or exploit using eps probability
         if explore:
+            # print("random")
             # explore using random selection of actions (random policy)
             action = self.env.action_space.sample()
         else:
+            # print("using policy")
             # exploit the action with the highest value (greedy policy)
+            self.q_function.eval()
             with torch.no_grad():
                 q_values = self.q_function(state)
+            if train:
+                self.q_function.train()
             action = int(torch.argmax(q_values))
 
         return action

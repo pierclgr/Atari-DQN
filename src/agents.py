@@ -44,6 +44,7 @@ class DQNAgent(Agent):
                  seed: int,
                  testing_seed: int,
                  home_directory: str,
+                 checkpoint_file: str,
                  buffer_capacity: int = 1000000,
                  num_episodes: int = 100,
                  batch_size: int = 32,
@@ -56,7 +57,9 @@ class DQNAgent(Agent):
                  criterion: nn.Module = None,
                  optimizer: torch.optim.Optimizer = None,
                  logger: Logger = None,
-                 checkpoint_every: int = 10) -> None:
+                 checkpoint_every: int = 10,
+                 max_steps_per_episode: int = 10000
+                 ) -> None:
 
         self.env = env
         self.testing_env = testing_env
@@ -75,6 +78,8 @@ class DQNAgent(Agent):
         self.home_directory = home_directory
         self.seed = seed
         self.testing_seed = testing_seed
+        self.checkpoint_file = checkpoint_file
+        self.max_steps_per_episode = max_steps_per_episode
 
         self.replay_buffer = ReplayBuffer(capacity=buffer_capacity)
 
@@ -197,18 +202,6 @@ class DQNAgent(Agent):
         else:
             cur_episode, train_loss, average_reward, episode_reward, eps, total_reward, total_steps, \
             test_average_reward, test_episode_reward, test_total_reward = checkpoint_info
-            print("Model, optimizer and replay buffer loaded from checkpoint.")
-            print(f"Loaded checkpoint:\n"
-                  f"\t- episode: {cur_episode + 1}\n"
-                  f"\t- train_loss: {train_loss}\n"
-                  f"\t- average_reward: {average_reward}\n"
-                  f"\t- episode_reward: {episode_reward}\n"
-                  f"\t- total_reward: {total_reward}\n"
-                  f"\t- test_average_reward: {test_average_reward}\n"
-                  f"\t- test_episode_reward: {test_episode_reward}\n"
-                  f"\t- test_total_reward: {test_total_reward}\n"
-                  f"\t- eps: {eps}\n"
-                  f"\t- total_steps: {total_steps}")
 
             # if logging is required, we update it at the end of every episode
             if self.logger:
@@ -346,6 +339,11 @@ class DQNAgent(Agent):
                 if total_steps % self.target_update_steps == 0:
                     self.target_q_function.load_state_dict(self.q_function.state_dict())
 
+                # break if maximum steps per episode is reached
+                if episode_steps >= self.max_steps_per_episode:
+                    print(f"Reached {episode_steps} steps, finishing the episode...")
+                    done = True
+
             # add the episode reward to the average reward
             total_reward += episode_reward
 
@@ -389,7 +387,7 @@ class DQNAgent(Agent):
                                    'test_total_reward': test_total_reward,
                                    'eps': self.eps}
 
-                filename = f"checkpoint_episode_{cur_episode + 1}"
+                filename = f"{self.checkpoint_file}_episode_{cur_episode + 1}"
 
                 # checkpoint the training
                 self.checkpoint_save(filename=filename, checkpoint=checkpoint_info)
@@ -418,13 +416,12 @@ class DQNAgent(Agent):
             previous_state = torch.as_tensor(previous_state).unsqueeze(axis=0).float().to(self.device)
             done = False
             episode_reward = 0
+            episode_steps = 0
 
             # while the episode is not done
             while not done:
-                # select an action to perform based on the agent policy using eps=eps_min to use the agent as if we were
-                # using the lowest possible eps, meaning that most of the times we're acting accordingly to the learned
-                # policy
-                action = self.get_action(previous_state, eps=self.eps_min, train=False)
+                # select an action to perform based on the agent policy using eps=0 to use only exploitation
+                action = self.get_action(previous_state, eps=0, train=False)
 
                 # perform the selected action and get the new state
                 current_state, reward, done, info = self.testing_env.step(action)
@@ -441,6 +438,13 @@ class DQNAgent(Agent):
                 # set the next previous state to the current one and unsqueeze it to feed it as a sample to the
                 # network
                 previous_state = current_state.unsqueeze(axis=0)
+
+                episode_steps += 1
+
+                # break if maximum steps per episode is reached
+                if episode_steps >= self.max_steps_per_episode:
+                    print(f"Reached {episode_steps} steps, finishing the episode...")
+                    done = True
 
         return episode_reward
 
@@ -485,31 +489,53 @@ class DQNAgent(Agent):
     def checkpoint_load(self) -> Optional[tuple]:
         checkpoint_path = f"{self.home_directory}trained_models/checkpoints/"
         # if the folder with checkpoints exists and is not empty
-        if os.path.isdir(checkpoint_path) and not len(os.listdir(checkpoint_path)) is 0:
+        if os.path.isdir(checkpoint_path):
             # define file path as the latest available checkpoint
-            sorted_checkpoint_files = natsorted(glob.glob(f'{checkpoint_path}*.pt'))
-            latest_checkpoint_file = sorted_checkpoint_files[-1]
+            sorted_checkpoint_files = natsorted(glob.glob(f'{checkpoint_path}{self.checkpoint_file}*.pt'))
 
-            # load information saved in the file
-            model = torch.load(latest_checkpoint_file)
+            if len(sorted_checkpoint_files) > 0:
+                latest_checkpoint_file = sorted_checkpoint_files[-1]
 
-            # load all checkpoint informations
-            self.q_function.load_state_dict(model['model_weights'])
-            self.optimizer.load_state_dict(model['optimizer_weights'])
-            self.replay_buffer = model['replay_buffer']
-            episode = model['episode']
-            train_loss = model['train_loss']
-            average_reward = model['average_reward']
-            episode_reward = model['episode_reward']
-            eps = model['eps']
-            total_reward = model['total_reward']
-            total_steps = model['total_steps']
-            test_average_reward = model['test_average_reward']
-            test_episode_reward = model['test_episode_reward']
-            test_total_reward = model['test_total_reward']
+                print(f"Loading checkpoint from file {os.path.basename(latest_checkpoint_file)}...")
 
-            return episode, train_loss, average_reward, episode_reward, eps, total_reward, total_steps, \
-                   test_average_reward, test_episode_reward, test_total_reward
+                # load information saved in the file
+                model = torch.load(latest_checkpoint_file)
+
+                # load all checkpoint informations
+                self.q_function.load_state_dict(model['model_weights'])
+                self.optimizer.load_state_dict(model['optimizer_weights'])
+                self.replay_buffer = model['replay_buffer']
+
+                print("Model, optimizer and replay buffer loaded from checkpoint.")
+
+                episode = model['episode']
+                train_loss = model['train_loss']
+                average_reward = model['average_reward']
+                episode_reward = model['episode_reward']
+                eps = model['eps']
+                total_reward = model['total_reward']
+                total_steps = model['total_steps']
+                test_average_reward = model['test_average_reward']
+                test_episode_reward = model['test_episode_reward']
+                test_total_reward = model['test_total_reward']
+
+                print(f"Loaded checkpoint:\n"
+                      f"\t- episode: {episode + 1}\n"
+                      f"\t- train_loss: {train_loss}\n"
+                      f"\t- average_reward: {average_reward}\n"
+                      f"\t- episode_reward: {episode_reward}\n"
+                      f"\t- total_reward: {total_reward}\n"
+                      f"\t- test_average_reward: {test_average_reward}\n"
+                      f"\t- test_episode_reward: {test_episode_reward}\n"
+                      f"\t- test_total_reward: {test_total_reward}\n"
+                      f"\t- eps: {eps}\n"
+                      f"\t- total_steps: {total_steps}")
+
+                return episode, train_loss, average_reward, episode_reward, eps, total_reward, total_steps, \
+                       test_average_reward, test_episode_reward, test_total_reward
+            else:
+                print("No checkpoint file found. Training is starting from the beginning...")
+                return None
         else:
             print("No checkpoint file found. Training is starting from the beginning...")
             return None

@@ -45,7 +45,8 @@ def trainer(config: DictConfig) -> None:
         "logging": config.logging,
         "home_directory": config.home_directory,
         "train_seed": config.train_seed,
-        "test_seed": config.test_seed
+        "test_seed": config.test_seed,
+        "max_steps_per_episode": config.max_steps_per_episode
     }
 
     print("Training configuration:")
@@ -92,11 +93,12 @@ def trainer(config: DictConfig) -> None:
 
     # initialize the agent
     agent = DQNAgent(env=train_env, testing_env=test_env, device=device, q_function=model,
-                     buffer_capacity=config.buffer_capacity,
+                     buffer_capacity=config.buffer_capacity, checkpoint_file=config.checkpoint_file,
                      num_episodes=config.num_episodes, batch_size=config.batch_size, discount_rate=config.gamma,
                      target_update_steps=config.c, logger=logger, eps_max=config.eps_max, eps_min=config.eps_min,
                      eps_decay_steps=config.eps_decay_steps, checkpoint_every=config.checkpoint_every,
-                     home_directory=config.home_directory, seed=config.train_seed, testing_seed=config.test_seed)
+                     home_directory=config.home_directory, seed=config.train_seed, testing_seed=config.test_seed,
+                     max_steps_per_episode=config.max_steps_per_episode)
 
     # train the environment
     agent.train()

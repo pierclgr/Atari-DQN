@@ -19,9 +19,6 @@ def trainer(config: DictConfig) -> None:
     # get the device
     device = get_device()
 
-    # set seeds for reproducibility
-    set_seeds()
-
     # set training hyperparameters
     configuration = {
         "batch_size": config.batch_size,
@@ -64,6 +61,9 @@ def trainer(config: DictConfig) -> None:
                                           screen_size=config.preprocessing.patch_size,
                                           grayscale_obs=config.preprocessing.grayscale)
     env = gym.wrappers.FrameStack(env, num_stack=config.preprocessing.n_frames_per_state)
+
+    # set seeds for reproducibility
+    set_seeds(env)
 
     # import specified model
     model = getattr(importlib.import_module("src.models"), config.model)

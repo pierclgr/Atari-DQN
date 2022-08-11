@@ -10,7 +10,7 @@ from pyvirtualdisplay import Display
 import gym
 
 from src.agents import DQNAgent
-from src.utils import get_device
+from src.utils import get_device, set_seeds
 
 
 @hydra.main(version_base=None, config_path="../config/", config_name="breakout")
@@ -26,6 +26,9 @@ def tester(config: DictConfig):
         env = gym.make(config.env_name, obs_type="rgb")
     else:
         env = gym.make(config.env_name, render_mode="human", obs_type="rgb")
+
+    # set seeds for reproducibility
+    # set_seeds(env)
 
     # apply Atari preprocessing
     env = gym.wrappers.AtariPreprocessing(env,

@@ -28,7 +28,7 @@ def tester(config: DictConfig):
         env = gym.make(config.env_name, render_mode="human", obs_type="rgb")
 
     # set seeds for reproducibility
-    # set_seeds(env)
+    set_seeds()
 
     # apply Atari preprocessing
     env = gym.wrappers.AtariPreprocessing(env,
@@ -51,17 +51,17 @@ def tester(config: DictConfig):
         env = Recorder(env, directory=f'{config.home_directory}video')
 
     # initialize the agent
-    agent = DQNAgent(env=env, device=device, q_function=model, buffer_capacity=config.buffer_capacity,
+    agent = DQNAgent(env=env, testing_env=env, device=device, q_function=model, buffer_capacity=config.buffer_capacity,
                      num_episodes=config.num_episodes, batch_size=config.batch_size, discount_rate=config.gamma,
                      target_update_steps=config.c, logger=None, eps_max=config.eps_max, eps_min=config.eps_min,
                      eps_decay_steps=config.eps_decay_steps, checkpoint_every=config.checkpoint_every,
-                     num_testing_episodes=config.num_testing_episodes, home_directory=config.home_directory)
+                     home_directory=config.home_directory, seed=config.train_seed, testing_seed=config.test_seed)
 
     # load the trained model
     agent.load(config.output_model_file)
 
     # test the agent
-    agent.test(in_colab=in_colab)
+    agent.test()
 
     # close the environment
     env.close()

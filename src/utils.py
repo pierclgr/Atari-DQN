@@ -27,7 +27,7 @@ class StateTransition(object):
                f"next_state: {self.next_state}, done: {self.done})"
 
 
-def set_seeds(env: gym.Env, seed: int = 1507) -> None:
+def set_seeds(seed: int = 1507) -> None:
     """
     Method to set the seeds of random components to allow reproducibility
 
@@ -43,10 +43,6 @@ def set_seeds(env: gym.Env, seed: int = 1507) -> None:
 
     # set pytorch random seed
     torch.manual_seed(seed)
-
-    # set seeds for gym environment
-    env.seed(seed=seed)
-    env.action_space.seed(seed=seed)
 
 
 def get_device() -> torch.device:

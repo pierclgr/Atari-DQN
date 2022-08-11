@@ -16,8 +16,13 @@ from omegaconf import DictConfig
 
 @hydra.main(version_base=None, config_path="../config/", config_name="breakout")
 def trainer(config: DictConfig) -> None:
+    in_colab = config.in_colab
+
     # get the device
     device = get_device()
+
+    # set seeds for reproducibility
+    set_seeds(seed=config.train_seed)
 
     # set training hyperparameters
     configuration = {
@@ -38,8 +43,9 @@ def trainer(config: DictConfig) -> None:
         "env_name": config.env_name,
         "model": config.model,
         "logging": config.logging,
-        "num_testing_episodes": config.num_testing_episodes,
-        "home_directory": config.home_directory
+        "home_directory": config.home_directory,
+        "train_seed": config.train_seed,
+        "test_seed": config.test_seed
     }
 
     print("Training configuration:")
@@ -51,29 +57,46 @@ def trainer(config: DictConfig) -> None:
     else:
         logger = None
 
-    # create the environment
-    env = gym.make(config.env_name, obs_type="rgb")
+    # create the training environment
+    train_env = gym.make(config.env_name, obs_type="rgb")
 
     # apply Atari preprocessing
-    env = gym.wrappers.AtariPreprocessing(env,
-                                          noop_max=config.preprocessing.n_frames_per_state,
-                                          frame_skip=config.preprocessing.n_frames_to_skip,
-                                          screen_size=config.preprocessing.patch_size,
-                                          grayscale_obs=config.preprocessing.grayscale)
-    env = gym.wrappers.FrameStack(env, num_stack=config.preprocessing.n_frames_per_state)
+    train_env = gym.wrappers.AtariPreprocessing(train_env,
+                                                noop_max=config.preprocessing.n_frames_per_state,
+                                                frame_skip=config.preprocessing.n_frames_to_skip,
+                                                screen_size=config.preprocessing.patch_size,
+                                                grayscale_obs=config.preprocessing.grayscale)
+    train_env = gym.wrappers.FrameStack(train_env, num_stack=config.preprocessing.n_frames_per_state)
 
-    # set seeds for reproducibility
-    set_seeds(env)
+    # create the testing environment
+    test_env = gym.make(config.env_name, obs_type="rgb")
+
+    # apply Atari preprocessing
+    test_env = gym.wrappers.AtariPreprocessing(test_env,
+                                               noop_max=config.preprocessing.n_frames_per_state,
+                                               frame_skip=config.preprocessing.n_frames_to_skip,
+                                               screen_size=config.preprocessing.patch_size,
+                                               grayscale_obs=config.preprocessing.grayscale)
+    test_env = gym.wrappers.FrameStack(test_env, num_stack=config.preprocessing.n_frames_per_state)
+
+    if in_colab:
+        # Set up display for visualization
+        Display(visible=False, size=(400, 300)).start()
+
+        # Instantiate the recorder wrapper around gym's environment to record and
+        # visualize the environment
+        test_env = Recorder(test_env, directory=f'{config.home_directory}video')
 
     # import specified model
     model = getattr(importlib.import_module("src.models"), config.model)
 
     # initialize the agent
-    agent = DQNAgent(env=env, device=device, q_function=model, buffer_capacity=config.buffer_capacity,
+    agent = DQNAgent(env=train_env, testing_env=test_env, device=device, q_function=model,
+                     buffer_capacity=config.buffer_capacity,
                      num_episodes=config.num_episodes, batch_size=config.batch_size, discount_rate=config.gamma,
                      target_update_steps=config.c, logger=logger, eps_max=config.eps_max, eps_min=config.eps_min,
                      eps_decay_steps=config.eps_decay_steps, checkpoint_every=config.checkpoint_every,
-                     num_testing_episodes=config.num_testing_episodes, home_directory=config.home_directory)
+                     home_directory=config.home_directory, seed=config.train_seed, testing_seed=config.test_seed)
 
     # train the environment
     agent.train()
@@ -82,7 +105,8 @@ def trainer(config: DictConfig) -> None:
     agent.save(filename=config.output_model_file)
 
     # close the environment
-    env.close()
+    train_env.close()
+    test_env.close()
 
     # close the logger
     if config.logging:

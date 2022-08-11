@@ -38,8 +38,11 @@ class Agent(ABC):
 class DQNAgent(Agent):
     def __init__(self,
                  env: gym.Env,
+                 testing_env: gym.Env,
                  q_function: Type[RLNetwork],
                  device: torch.device,
+                 seed: int,
+                 testing_seed: int,
                  home_directory: str,
                  buffer_capacity: int = 1000000,
                  num_episodes: int = 100,
@@ -53,10 +56,10 @@ class DQNAgent(Agent):
                  criterion: nn.Module = None,
                  optimizer: torch.optim.Optimizer = None,
                  logger: Logger = None,
-                 checkpoint_every: int = 10,
-                 num_testing_episodes: int = 1) -> None:
+                 checkpoint_every: int = 10) -> None:
 
         self.env = env
+        self.testing_env = testing_env
         self.num_episodes = num_episodes
         self.batch_size = batch_size
         self.device = device
@@ -69,8 +72,9 @@ class DQNAgent(Agent):
         self.learning_rate = learning_rate
         self.logger = logger
         self.checkpoint_every = checkpoint_every
-        self.num_testing_episodes = num_testing_episodes
         self.home_directory = home_directory
+        self.seed = seed
+        self.testing_seed = testing_seed
 
         self.replay_buffer = ReplayBuffer(capacity=buffer_capacity)
 
@@ -104,7 +108,9 @@ class DQNAgent(Agent):
             with tqdm(total=n_samples) as progress_bar:
                 while not full:
                     # reset the environment and get the initial state to start a new episode
-                    previous_state = self.env.reset()
+                    self.env.seed(seed=self.seed)
+                    self.env.action_space.seed(seed=self.seed)
+                    previous_state = self.env.reset(seed=self.seed)
 
                     # convert the initial state to np array
                     previous_state = np.asarray(previous_state)
@@ -177,6 +183,7 @@ class DQNAgent(Agent):
         if not checkpoint_info:
             total_steps = 0
             total_reward = 0
+            test_total_reward = 0
             cur_episode = 0
 
             # initialize replay buffer to specified capacity by following the agent policy and setting the q_function
@@ -188,7 +195,8 @@ class DQNAgent(Agent):
             # for each episode
             print(f"Training for {self.num_episodes} episodes...")
         else:
-            cur_episode, train_loss, average_reward, episode_reward, eps, total_reward, total_steps = checkpoint_info
+            cur_episode, train_loss, average_reward, episode_reward, eps, total_reward, total_steps, \
+            test_average_reward, test_episode_reward, test_total_reward = checkpoint_info
             print("Model, optimizer and replay buffer loaded from checkpoint.")
             print(f"Loaded checkpoint:\n"
                   f"\t- episode: {cur_episode + 1}\n"
@@ -196,6 +204,9 @@ class DQNAgent(Agent):
                   f"\t- average_reward: {average_reward}\n"
                   f"\t- episode_reward: {episode_reward}\n"
                   f"\t- total_reward: {total_reward}\n"
+                  f"\t- test_average_reward: {test_average_reward}\n"
+                  f"\t- test_episode_reward: {test_episode_reward}\n"
+                  f"\t- test_total_reward: {test_total_reward}\n"
                   f"\t- eps: {eps}\n"
                   f"\t- total_steps: {total_steps}")
 
@@ -215,7 +226,9 @@ class DQNAgent(Agent):
         while cur_episode < self.num_episodes:
             print(f"Episode {cur_episode + 1}...")
             # reset the environment and get the initial state to start a new episode
-            previous_state = self.env.reset()
+            self.env.seed(seed=self.seed)
+            self.env.action_space.seed(seed=self.seed)
+            previous_state = self.env.reset(seed=self.seed)
 
             # convert the initial state to np array
             previous_state = np.asarray(previous_state)
@@ -342,15 +355,25 @@ class DQNAgent(Agent):
             # compute average training loss for this episode
             train_loss = episode_loss / episode_steps
 
+            # test the agent at each training episode
+            test_episode_reward = self.test()
+            self.q_function.train()
+
+            test_total_reward += test_episode_reward
+            test_average_reward = test_total_reward / (cur_episode + 1)
+
             # if logging is required, we update it at the end of every episode
             if self.logger:
                 self.logger.log("train_loss", train_loss, cur_episode)
                 self.logger.log("eps", self.eps, cur_episode)
                 self.logger.log("episode_reward", episode_reward, cur_episode)
                 self.logger.log("average_reward", average_reward, cur_episode)
+                self.logger.log("test_episode_reward", test_episode_reward, cur_episode)
+                self.logger.log("test_average_reward", test_average_reward, cur_episode)
 
             print(f"train_loss: {train_loss}, eps: {self.eps}, episode_reward: {episode_reward}, "
-                  f"average_reward: {average_reward}")
+                  f"average_reward: {average_reward}, test_episode_reward: {test_episode_reward}, "
+                  f"test_average_reward: {test_average_reward}")
 
             # checkpoint the training every defined steps
             if (cur_episode + 1) % self.checkpoint_every == 0:
@@ -361,6 +384,9 @@ class DQNAgent(Agent):
                                    'episode_reward': episode_reward,
                                    'total_reward': total_reward,
                                    'total_steps': total_steps,
+                                   'test_average_reward': test_average_reward,
+                                   'test_episode_reward': test_episode_reward,
+                                   'test_total_reward': test_total_reward,
                                    'eps': self.eps}
 
                 filename = f"checkpoint_episode_{cur_episode + 1}"
@@ -371,80 +397,59 @@ class DQNAgent(Agent):
             cur_episode += 1
         print("Done.")
 
-    def test(self, in_colab: bool = False):
+    def test(self):
         # set the two networks to eval mode
         self.q_function.eval()
         self.target_q_function.eval()
 
         with torch.no_grad():
-            print(f"Testing for {self.num_testing_episodes} episodes...")
+            print(f"Testing...")
 
-            cur_episode = 0
-            total_steps = 0
-            total_reward = 0
-            while cur_episode < self.num_testing_episodes:
-                print(f"Episode {cur_episode + 1}...")
-                # reset the environment and get the initial state to start a new episode
-                previous_state = self.env.reset()
+            # reset the environment and get the initial state to start a new episode
+            self.testing_env.seed(seed=self.testing_seed)
+            self.testing_env.action_space.seed(seed=self.testing_seed)
+            previous_state = self.testing_env.reset(seed=self.testing_seed)
 
-                # convert the initial state to np array
-                previous_state = np.asarray(previous_state)
+            # convert the initial state to np array
+            previous_state = np.asarray(previous_state)
 
-                # convert the initial state to torch tensor, unsqueeze it to feed it as a sample to the network and cast
-                # to float tensor
-                previous_state = torch.as_tensor(previous_state).unsqueeze(axis=0).float().to(self.device)
-                done = False
-                episode_reward = 0
+            # convert the initial state to torch tensor, unsqueeze it to feed it as a sample to the network and cast
+            # to float tensor
+            previous_state = torch.as_tensor(previous_state).unsqueeze(axis=0).float().to(self.device)
+            done = False
+            episode_reward = 0
 
-                # while the episode is not done
-                while not done:
-                    # select an action to perform based on the agent policy using eps=0 to use exploitation (the learned
-                    # policy)
-                    action = self.get_action(previous_state, eps=1, train=False)
+            # while the episode is not done
+            while not done:
+                # select an action to perform based on the agent policy using eps=0 to use exploitation (the learned
+                # policy)
+                action = self.get_action(previous_state, eps=0, train=False)
 
-                    # perform the selected action and get the new state
-                    current_state, reward, done, info = self.env.step(action)
+                # perform the selected action and get the new state
+                current_state, reward, done, info = self.testing_env.step(action)
 
-                    # add the reward to the total reward of the current episode
-                    episode_reward += reward
+                # add the reward to the total reward of the current episode
+                episode_reward += reward
 
-                    # convert the new state to numpy array
-                    current_state = np.asarray(current_state)
+                # convert the new state to numpy array
+                current_state = np.asarray(current_state)
 
-                    # convert the initial state to torch tensor and cast to float tensor
-                    current_state = torch.as_tensor(current_state).float().to(self.device)
+                # convert the initial state to torch tensor and cast to float tensor
+                current_state = torch.as_tensor(current_state).float().to(self.device)
 
-                    # set the next previous state to the current one and unsqueeze it to feed it as a sample to the
-                    # network
-                    previous_state = current_state.unsqueeze(axis=0)
+                # set the next previous state to the current one and unsqueeze it to feed it as a sample to the
+                # network
+                previous_state = current_state.unsqueeze(axis=0)
 
-                    # increment the episode steps and the total steps
-                    total_steps += 1
-
-                # add the episode reward to the average reward
-                total_reward += episode_reward
-
-                # compute average reward for the current episode
-                average_reward = total_reward / (cur_episode + 1)
-
-                print(
-                    f"episode_reward: {episode_reward}, average_reward: {average_reward}")
-
-                cur_episode += 1
-
-            # if in colab
-            if in_colab:
-                # play the game video
-                self.env.play()
-
-            print("Done.")
+        return episode_reward
 
     def save(self, filename: str):
-        print("Saving trained model..")
         trained_model_path = f"{self.home_directory}trained_models/"
         if not os.path.isdir(trained_model_path):
             os.makedirs(trained_model_path)
         file_path = f"{trained_model_path}{filename}.pt"
+
+        print(f"Saving trained model to {filename}.pt...")
 
         # save network weights
         torch.save(self.q_function.state_dict(), file_path)
@@ -498,8 +503,12 @@ class DQNAgent(Agent):
             eps = model['eps']
             total_reward = model['total_reward']
             total_steps = model['total_steps']
+            test_average_reward = model['test_average_reward']
+            test_episode_reward = model['test_episode_reward']
+            test_total_reward = model['test_total_reward']
 
-            return episode, train_loss, average_reward, episode_reward, eps, total_reward, total_steps
+            return episode, train_loss, average_reward, episode_reward, eps, total_reward, total_steps, \
+                   test_average_reward, test_episode_reward, test_total_reward
         else:
             print("No checkpoint file found. Training is starting from the beginning...")
             return None
@@ -515,7 +524,10 @@ class DQNAgent(Agent):
         if explore:
             # print("random")
             # explore using random selection of actions (random policy)
-            action = self.env.action_space.sample()
+            if train:
+                action = self.env.action_space.sample()
+            else:
+                action = self.testing_env.action_space.sample()
         else:
             # print("using policy")
             # exploit the action with the highest value (greedy policy)

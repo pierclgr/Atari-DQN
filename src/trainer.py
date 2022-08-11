@@ -16,9 +16,6 @@ from omegaconf import DictConfig
 
 @hydra.main(version_base=None, config_path="../config/", config_name="breakout")
 def trainer(config: DictConfig) -> None:
-    # check if we're running in colab
-    in_colab = config.in_colab
-
     # get the device
     device = get_device()
 
@@ -58,10 +55,7 @@ def trainer(config: DictConfig) -> None:
         logger = None
 
     # create the environment
-    if in_colab:
-        env = gym.make(config.env_name, obs_type="rgb")
-    else:
-        env = gym.make(config.env_name, render_mode="human", obs_type="rgb")
+    env = gym.make(config.env_name, obs_type="rgb")
 
     # apply Atari preprocessing
     env = gym.wrappers.AtariPreprocessing(env,
@@ -73,16 +67,6 @@ def trainer(config: DictConfig) -> None:
 
     # import specified model
     model = getattr(importlib.import_module("src.models"), config.model)
-
-    # if running in colab
-    if in_colab:
-        # Set up display for visualization
-        Display(visible=False, size=(400, 300)).start()
-
-        # Instantiate the recorder wrapper around gym's environment to record and
-        # visualize the environment+
-        os.makedirs(f'{config.home_directory}video/train')
-        env = Recorder(env, directory=f'{config.home_directory}video/train')
 
     # initialize the agent
     agent = DQNAgent(env=env, device=device, q_function=model, buffer_capacity=config.buffer_capacity,
@@ -96,11 +80,6 @@ def trainer(config: DictConfig) -> None:
 
     # save the trained model
     agent.save(filename=config.output_model_file)
-
-    # if in colab
-    if in_colab:
-        # play the game video
-        env.play()
 
     # close the environment
     env.close()

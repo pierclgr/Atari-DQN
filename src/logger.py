@@ -24,14 +24,17 @@ class WandbLogger(Logger):
                  config: dict,
                  cache_size: int = 100,
                  project: str = "AAS_project",
-                 entity: str = "pierclgr"):
+                 entity: str = "pierclgr",
+                 monitor_gym: bool = True):
         self.name = name + "_" + random_string()
         self.project = project
         self.entity = entity
         self.config = config
         self.cache_size = cache_size
+        self.monitor_gym = monitor_gym
 
-        self.logger = wandb.init(project=self.project, name=self.name, entity=self.entity, config=self.config)
+        self.logger = wandb.init(project=self.project, name=self.name, entity=self.entity, config=self.config,
+                                 monitor_gym=self.monitor_gym)
 
         self.metrics = {}
 

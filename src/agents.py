@@ -55,7 +55,6 @@ class DQNAgent(Agent):
                  target_update_steps: int,
                  learning_rate: float,
                  checkpoint_every: int,
-                 max_steps_per_episode: int,
                  criterion: nn.Module = None,
                  optimizer: torch.optim.Optimizer = None,
                  logger: Logger = None
@@ -79,7 +78,6 @@ class DQNAgent(Agent):
         self.seed = seed
         self.testing_seed = testing_seed
         self.checkpoint_file = checkpoint_file
-        self.max_steps_per_episode = max_steps_per_episode
 
         self.replay_buffer = ReplayBuffer(capacity=buffer_capacity)
 
@@ -110,7 +108,7 @@ class DQNAgent(Agent):
 
             # if the replay buffer is has not been filled with the defined amount of samples yes
             full = False
-            with tqdm(total=n_samples) as progress_bar:
+            with tqdm(total=n_samples) as init_pbar:
                 while not full:
                     # reset the environment and get the initial state to start a new episode
                     self.env.seed(seed=self.seed)
@@ -145,7 +143,6 @@ class DQNAgent(Agent):
                         # add the state transition to the replay buffer
                         self.store_experience(StateTransition(state=previous_state, action=action, reward=reward,
                                                               next_state=current_state, done=done))
-                        progress_bar.update(1)
 
                         # set the next previous state to the current one and unsqueeze it to feed it as a sample to the
                         # network
@@ -154,6 +151,8 @@ class DQNAgent(Agent):
                         # if the replay buffer has the specified amount of samples, break the filling operation
                         if len(self.replay_buffer) >= n_samples:
                             full = True
+
+                        init_pbar.update(1)
 
     def sample_experience(self, num_samples: int = 1) -> StateTransition:
         batch = self.replay_buffer.sample(num_samples=num_samples)
@@ -237,114 +236,117 @@ class DQNAgent(Agent):
             episode_steps = 0
 
             # while the episode is not done
-            while not done:
-                # decay eps accordingly to the current number of steps
-                self.eps_decay(total_steps)
+            with tqdm(total=self.env.spec.max_episode_steps) as train_pbar:
+                while not done:
+                    # decay eps accordingly to the current number of steps
+                    self.eps_decay(total_steps)
 
-                # select an action to perform based on the agent policy
-                action = self.get_action(previous_state, train=True)
+                    # select an action to perform based on the agent policy
+                    action = self.get_action(previous_state, train=True)
 
-                # perform the selected action and get the new state
-                current_state, reward, done, info = self.env.step(action)
+                    # perform the selected action and get the new state
+                    current_state, reward, done, info = self.env.step(action)
 
-                # add the reward to the total reward of the current episode
-                episode_reward += reward
+                    # add the reward to the total reward of the current episode
+                    episode_reward += reward
 
-                # convert the new state to numpy array
-                current_state = np.asarray(current_state)
+                    # convert the new state to numpy array
+                    current_state = np.asarray(current_state)
 
-                # convert the initial state to torch tensor and cast to float tensor
-                current_state = torch.as_tensor(current_state).float().to(self.device)
+                    # convert the initial state to torch tensor and cast to float tensor
+                    current_state = torch.as_tensor(current_state).float().to(self.device)
 
-                # squeeze the previous state in order to store it in the buffer
-                previous_state = previous_state.squeeze()
+                    # squeeze the previous state in order to store it in the buffer
+                    previous_state = previous_state.squeeze()
 
-                # store the transition to the replay buffer memory
-                state_transition = StateTransition(state=previous_state, action=action, reward=reward,
-                                                   next_state=current_state, done=done)
-                self.store_experience(state_transition=state_transition)
+                    # store the transition to the replay buffer memory
+                    state_transition = StateTransition(state=previous_state, action=action, reward=reward,
+                                                       next_state=current_state, done=done)
+                    self.store_experience(state_transition=state_transition)
 
-                # set the next previous state to the current one and unsqueeze it to feed it as a sample to the
-                # network
-                previous_state = current_state.unsqueeze(axis=0)
+                    # set the next previous state to the current one and unsqueeze it to feed it as a sample to the
+                    # network
+                    previous_state = current_state.unsqueeze(axis=0)
 
-                # sample a random minibatch of transitions
-                state_transitions_batch = self.sample_experience(num_samples=self.batch_size)
+                    # sample a random minibatch of transitions
+                    state_transitions_batch = self.sample_experience(num_samples=self.batch_size)
 
-                # compute the labels for the loss computation: if a state is the final state, namely done is true, the
-                # label is the reward at that time, otherwise the label is computed as the sum between the reward and
-                # the discounted reward at the next state, which in this case is computed by the target_q_function
+                    # compute the labels for the loss computation: if a state is the final state, namely done is true,
+                    # the label is the reward at that time, otherwise the label is computed as the sum between the
+                    # reward and the discounted reward at the next state, which in this case is computed by the
+                    # target_q_function
 
-                # as a first step, we feed the batch of next states to the target network to compute the future rewards,
-                # namely the rewards for the next state
-                with torch.no_grad():
-                    target_q_values = self.target_q_function(state_transitions_batch.next_state)
+                    # as a first step, we feed the batch of next states to the target network to compute the future
+                    # rewards, namely the rewards for the next state
+                    with torch.no_grad():
+                        target_q_values = self.target_q_function(state_transitions_batch.next_state)
 
-                # as second step, we get the maximum value for each of the predicted future rewards, so we select the
-                # reward corresponding to the action with the highest return
-                target_q_values, _ = torch.max(target_q_values, dim=1)
+                    # as second step, we get the maximum value for each of the predicted future rewards, so we select
+                    # the reward corresponding to the action with the highest return
+                    target_q_values, _ = torch.max(target_q_values, dim=1)
 
-                # then, we apply a discount rate to the future rewards
-                target_q_values = self.discount_rate * target_q_values
+                    # then, we apply a discount rate to the future rewards
+                    target_q_values = self.discount_rate * target_q_values
 
-                # now, we need to zero the future rewards that correspond to states that are final states; in fact, as
-                # said before, future rewards are used in the computations just for current states which are not final
-                # states; for final states, the actual reward is just the reward of the current state
-                # we can do this by mulitplying a boolean tensor with the tensor of future rewards: this will produce a
-                # tensor where the discounted future rewards are zeroed where the boolean tensor is False
-                # we need to zero the discounted future rewards for the final states, so the states that are True in
-                # the done batch, so we simply mulitply the discounted future rewards tensor by the opposite of the
-                # done batch
-                target_q_values = target_q_values * torch.logical_not(state_transitions_batch.done)
+                    # now, we need to zero the future rewards that correspond to states that are final states; in fact,
+                    # as said before, future rewards are used in the computations just for current states which are not
+                    # final states; for final states, the actual reward is just the reward of the current state
+                    # we can do this by mulitplying a boolean tensor with the tensor of future rewards: this will
+                    # produce a tensor where the discounted future rewards are zeroed where the boolean tensor is False
+                    # we need to zero the discounted future rewards for the final states, so the states that are True in
+                    # the done batch, so we simply mulitply the discounted future rewards tensor by the opposite of the
+                    # done batch
+                    target_q_values = target_q_values * torch.logical_not(state_transitions_batch.done)
 
-                # finally, we sum the resulting tensor with the reward batch, resulting thus in a tensor with only the
-                # reward for final states and the discounted future reward plus the actual reward for non-final states
-                target_q_values = state_transitions_batch.reward + target_q_values
+                    # finally, we sum the resulting tensor with the reward batch, resulting thus in a tensor with only
+                    # the reward for final states and the discounted future reward plus the actual reward for non-final
+                    # states
+                    target_q_values = state_transitions_batch.reward + target_q_values
 
-                # we now compute the estimated rewards for the current states using the q_function, but before we zero
-                # the gradients of the optimizer
-                self.optimizer.zero_grad()
-                q_values = self.q_function(state_transitions_batch.state)
+                    # we now compute the estimated rewards for the current states using the q_function, but before we
+                    # zero the gradients of the optimizer
+                    self.optimizer.zero_grad()
+                    q_values = self.q_function(state_transitions_batch.state)
 
-                # the previously computed tensor contains the estimated reward for each of the possible action; since
-                # we need to compute the loss between these estimated rewards and the target rewards computed before,
-                # this latter tensor only contains the future reward with no information about the action, so what we do
-                # is computing a one-hot tensor which zeroes the estimated rewards for actions that are not the actual
-                # taken actions
-                one_hot_actions = torch.nn.functional.one_hot(state_transitions_batch.action, self.env.action_space.n)
+                    # the previously computed tensor contains the estimated reward for each of the possible action;
+                    # since we need to compute the loss between these estimated rewards and the target rewards computed
+                    # before, this latter tensor only contains the future reward with no information about the action,
+                    # so what we do is computing a one-hot tensor which zeroes the estimated rewards for actions that
+                    # are not the actual taken actions
+                    one_hot_actions = torch.nn.functional.one_hot(state_transitions_batch.action,
+                                                                  self.env.action_space.n)
 
-                # by multiplying the estimated reward tensor and the one hot action tensor, we will get a tensor of the
-                # same shape that contains 0 as a reward for actions that are not the current action while contains the
-                # estimated reward for the action that is the current action
-                q_values *= one_hot_actions
+                    # by multiplying the estimated reward tensor and the one hot action tensor, we will get a tensor of
+                    # the same shape that contains 0 as a reward for actions that are not the current action while
+                    # contains the estimated reward for the action that is the current action
+                    q_values *= one_hot_actions
 
-                # we then sum the estimated along the actions dimension to get the final a tensor with only one reward
-                # per sample that will be the only reward that was not zeroed out in the previous step (because we will
-                # sum zeros with only one reward value)
-                q_values = torch.sum(q_values, dim=1)
+                    # we then sum the estimated along the actions dimension to get the final a tensor with only one
+                    # reward per sample that will be the only reward that was not zeroed out in the previous step
+                    # (because we will sum zeros with only one reward value)
+                    q_values = torch.sum(q_values, dim=1)
 
-                # now we compute the loss between predicted rewards and target rewards and perform a gradient descent
-                # step over the parameters of the q_funciton
-                loss = self.criterion(target_q_values, q_values)
-                loss.backward()
-                self.optimizer.step()
+                    # now we compute the loss between predicted rewards and target rewards and perform a gradient
+                    # descent
+                    # step over the parameters of the q_funciton
+                    loss = self.criterion(target_q_values, q_values)
+                    loss.backward()
+                    self.optimizer.step()
 
-                # add the loss to the total loss of the episode
-                episode_loss += loss.detach().item()
+                    # add the loss to the total loss of the episode
+                    episode_loss += loss.detach().item()
 
-                # increment the episode steps and the total steps
-                total_steps += 1
-                episode_steps += 1
+                    # increment the episode steps and the total steps
+                    total_steps += 1
+                    episode_steps += 1
 
-                # every C gradient descent steps, we need to reset the target_q_function weights by setting its weights
-                # to the weights of the q_function
-                if total_steps % self.target_update_steps == 0:
-                    self.target_q_function.load_state_dict(self.q_function.state_dict())
+                    # every C gradient descent steps, we need to reset the target_q_function weights by setting its
+                    # weights
+                    # to the weights of the q_function
+                    if total_steps % self.target_update_steps == 0:
+                        self.target_q_function.load_state_dict(self.q_function.state_dict())
 
-                # break if maximum steps per episode is reached
-                if episode_steps >= self.max_steps_per_episode:
-                    print(f"Reached {episode_steps} steps, finishing the episode...")
-                    done = True
+                    train_pbar.update(self.env.num_stack)
 
             # add the episode reward to the average reward
             total_reward += episode_reward
@@ -409,7 +411,6 @@ class DQNAgent(Agent):
             self.testing_env.seed(seed=self.testing_seed)
             self.testing_env.action_space.seed(seed=self.testing_seed)
             previous_state = self.testing_env.reset(seed=self.testing_seed)
-
             # convert the initial state to np array
             previous_state = np.asarray(previous_state)
 
@@ -418,35 +419,30 @@ class DQNAgent(Agent):
             previous_state = torch.as_tensor(previous_state).unsqueeze(axis=0).float().to(self.device)
             done = False
             episode_reward = 0
-            episode_steps = 0
 
             # while the episode is not done
-            while not done:
-                # select an action to perform based on the agent policy using eps=0 to use only exploitation
-                action = self.get_action(previous_state, eps=0, train=False)
+            with tqdm(total=self.testing_env.spec.max_episode_steps) as test_pbar:
+                while not done:
+                    # select an action to perform based on the agent policy using eps=0 to use only exploitation
+                    action = self.get_action(previous_state, eps=0, train=False)
 
-                # perform the selected action and get the new state
-                current_state, reward, done, info = self.testing_env.step(action)
+                    # perform the selected action and get the new state
+                    current_state, reward, done, info = self.testing_env.step(action)
 
-                # add the reward to the total reward of the current episode
-                episode_reward += reward
+                    # add the reward to the total reward of the current episode
+                    episode_reward += reward
 
-                # convert the new state to numpy array
-                current_state = np.asarray(current_state)
+                    # convert the new state to numpy array
+                    current_state = np.asarray(current_state)
 
-                # convert the initial state to torch tensor and cast to float tensor
-                current_state = torch.as_tensor(current_state).float().to(self.device)
+                    # convert the initial state to torch tensor and cast to float tensor
+                    current_state = torch.as_tensor(current_state).float().to(self.device)
 
-                # set the next previous state to the current one and unsqueeze it to feed it as a sample to the
-                # network
-                previous_state = current_state.unsqueeze(axis=0)
+                    # set the next previous state to the current one and unsqueeze it to feed it as a sample to the
+                    # network
+                    previous_state = current_state.unsqueeze(axis=0)
 
-                episode_steps += 1
-
-                # break if maximum steps per episode is reached
-                if episode_steps >= self.max_steps_per_episode:
-                    print(f"Reached {episode_steps} steps, finishing the episode...")
-                    done = True
+                    test_pbar.update(self.testing_env.num_stack)
 
         return episode_reward
 

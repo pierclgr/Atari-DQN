@@ -75,10 +75,8 @@ def get_device() -> torch.device:
             output = stream.read()
             print(output)
 
-    print(f"Using {device} device...")
-
     return device
 
 
-def checkpoint_episode_trigger(episode_id: int, checkpoint_every: int) -> bool:
+def checkpoint_episode_trigger(episode_id: int, checkpoint_every: int):
     return episode_id % checkpoint_every == 0

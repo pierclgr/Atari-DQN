@@ -9,14 +9,11 @@ from src.utils import set_seeds, get_device, checkpoint_episode_trigger
 from functools import partial
 import sys
 import hydra
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 
 @hydra.main(version_base=None, config_path="../config/", config_name="breakout")
 def trainer(config: DictConfig) -> None:
-    print("Training configuration:")
-    pprint.pprint(config)
-
     in_colab = config.in_colab
 
     # get the device
@@ -25,30 +22,7 @@ def trainer(config: DictConfig) -> None:
     # set seeds for reproducibility
     set_seeds(seed=config.train_seed)
 
-    # set training hyperparameters
-    configuration = {
-        "batch_size": config.batch_size,
-        "num_episodes": config.num_episodes,
-        "buffer_capacity": config.buffer_capacity,
-        "n_frames_to_skip": config.preprocessing.n_frames_to_skip,
-        "n_frames_per_state": config.preprocessing.n_frames_per_state,
-        "patch_size": config.preprocessing.patch_size,
-        "grayscale": config.preprocessing.grayscale,
-        "discount_factor": config.gamma,
-        "target_update_steps": config.c,
-        "learning_rate": config.lr,
-        "eps_max": config.eps_max,
-        "eps_min": config.eps_min,
-        "eps_decay_steps": config.eps_decay_steps,
-        "checkpoint_every": config.checkpoint_every,
-        "env_name": config.env_name,
-        "model": config.model,
-        "logging": config.logging,
-        "home_directory": config.home_directory,
-        "train_seed": config.train_seed,
-        "test_seed": config.test_seed,
-        "max_steps_per_episode": config.max_steps_per_episode
-    }
+    configuration = OmegaConf.to_object(config)
 
     # initialize logger
     if config.logging:
@@ -56,8 +30,12 @@ def trainer(config: DictConfig) -> None:
     else:
         logger = None
 
+    print(f"Using {device} device...")
+    print("Training configuration:")
+    pprint.pprint(configuration)
+
     # create the training environment
-    train_env = gym.make(config.env_name, obs_type="rgb")
+    train_env = gym.make(config.env_name, obs_type="rgb", max_episode_steps=config.max_steps_per_episode)
 
     # apply Atari preprocessing
     train_env = gym.wrappers.AtariPreprocessing(train_env,
@@ -68,8 +46,9 @@ def trainer(config: DictConfig) -> None:
     train_env = gym.wrappers.FrameStack(train_env, num_stack=config.preprocessing.n_frames_per_state)
 
     # create the testing environment
-    render_mode = None if in_colab else "human"
-    test_env = gym.make(config.env_name, obs_type="rgb", render_mode=render_mode)
+    render_mode = "rgb_array" if in_colab else "human"
+    test_env = gym.make(config.env_name, obs_type="rgb", render_mode=render_mode,
+                        max_episode_steps=config.max_steps_per_episode)
 
     # apply Atari preprocessing
     test_env = gym.wrappers.AtariPreprocessing(test_env,
@@ -82,10 +61,9 @@ def trainer(config: DictConfig) -> None:
     # Instantiate the recorder wrapper around gym's environment to record and
     # visualize the environment
     episode_trigger = partial(checkpoint_episode_trigger, checkpoint_every=config.checkpoint_every)
-    test_env = gym.wrappers.RecordVideo(test_env, video_folder=f'{config.home_directory}video',
-                                        episode_trigger=episode_trigger, name_prefix=config.video_file)
+    test_env = gym.wrappers.RecordVideo(test_env, video_folder=f'{config.home_directory}videos',
+                                        name_prefix=config.video_file, episode_trigger=episode_trigger)
     test_env.episode_id = 1
-    test_env.step_id = 1
 
     # import specified model
     model = getattr(importlib.import_module("src.models"), config.model)
@@ -97,7 +75,7 @@ def trainer(config: DictConfig) -> None:
                      target_update_steps=config.c, logger=logger, eps_max=config.eps_max, eps_min=config.eps_min,
                      eps_decay_steps=config.eps_decay_steps, checkpoint_every=config.checkpoint_every,
                      home_directory=config.home_directory, seed=config.train_seed, testing_seed=config.test_seed,
-                     max_steps_per_episode=config.max_steps_per_episode, learning_rate=config.lr)
+                     learning_rate=config.lr)
 
     # train the environment
     agent.train()

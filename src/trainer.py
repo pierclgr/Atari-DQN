@@ -1,13 +1,12 @@
 import os
 import pprint
 
-from gym.wrappers import RecordVideo
-
 from src.agents import DQNAgent
 import importlib
 import gym
 from logger import WandbLogger
-from src.utils import set_seeds, get_device
+from src.utils import set_seeds, get_device, checkpoint_episode_trigger
+from functools import partial
 import sys
 import hydra
 from omegaconf import DictConfig
@@ -67,7 +66,7 @@ def trainer(config: DictConfig) -> None:
     train_env = gym.wrappers.FrameStack(train_env, num_stack=config.preprocessing.n_frames_per_state)
 
     # create the testing environment
-    test_env = gym.make(config.env_name, obs_type="rgb", render_fps=60)
+    test_env = gym.make(config.env_name, obs_type="rgb", render_mode="human")
 
     # apply Atari preprocessing
     test_env = gym.wrappers.AtariPreprocessing(test_env,
@@ -79,7 +78,11 @@ def trainer(config: DictConfig) -> None:
 
     # Instantiate the recorder wrapper around gym's environment to record and
     # visualize the environment
-    test_env = RecordVideo(test_env, video_folder=f'{config.home_directory}video')
+    episode_trigger = partial(checkpoint_episode_trigger, checkpoint_every=config.checkpoint_every)
+    test_env = RecordVideo(test_env, video_folder=f'{config.home_directory}video', episode_trigger=episode_trigger,
+                           name_prefix=config.video_file)
+    test_env.episode_id = 1
+    test_env.step_id = 1
 
     # import specified model
     model = getattr(importlib.import_module("src.models"), config.model)

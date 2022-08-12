@@ -16,10 +16,11 @@ checkpoint_every: 50
 home_directory: /Users/pierclgr/PycharmProjects/AAS_project/
 env_name: BreakoutNoFrameskip-v4
 checkpoint_file: breakout_checkpoint
+video_file: breakout
 model: DQNNetwork
 output_model_file: breakout_final_model
 max_steps_per_episode: 10000
 logging: true
 in_colab: true
 train_seed: 1507
-test_seed: 2307
+test_seed: 1507

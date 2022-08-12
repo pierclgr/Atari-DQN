@@ -10,7 +10,7 @@ eps_max: 1
 eps_min: 0.01
 eps_decay_steps: 1000000
 gamma: 0.90  # discount factor
-c: 500  # num steps after which to do target update
+c: 50000  # num steps after which to do target update
 lr: 0.00025
 checkpoint_every: 50
 home_directory: /Users/pierclgr/PycharmProjects/AAS_project/

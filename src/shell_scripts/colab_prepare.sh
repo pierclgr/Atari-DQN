@@ -7,7 +7,7 @@ pip install -r requirements.txt
 cd /content/
 
 # install x11-utils
-# apt-get install x11-utils
+ apt-get install x11-utils
 
 # install python opengl
 # apt-get install -y xvfb python-opengl ffmpeg

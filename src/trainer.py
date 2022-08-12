@@ -14,6 +14,9 @@ from omegaconf import DictConfig
 
 @hydra.main(version_base=None, config_path="../config/", config_name="breakout")
 def trainer(config: DictConfig) -> None:
+    print("Training configuration:")
+    pprint.pprint(config)
+
     in_colab = config.in_colab
 
     # get the device
@@ -46,9 +49,6 @@ def trainer(config: DictConfig) -> None:
         "test_seed": config.test_seed,
         "max_steps_per_episode": config.max_steps_per_episode
     }
-
-    print("Training configuration:")
-    pprint.pprint(configuration)
 
     # initialize logger
     if config.logging:

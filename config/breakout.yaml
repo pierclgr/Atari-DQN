@@ -23,4 +23,4 @@ max_steps_per_episode: 10000
 logging: true
 in_colab: true
 train_seed: 1507
-test_seed: 1507
+test_seed: 2307

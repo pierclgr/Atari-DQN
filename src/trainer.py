@@ -14,6 +14,8 @@ from omegaconf import DictConfig
 
 @hydra.main(version_base=None, config_path="../config/", config_name="breakout")
 def trainer(config: DictConfig) -> None:
+    in_colab = config.in_colab
+
     # get the device
     device = get_device()
 
@@ -66,7 +68,8 @@ def trainer(config: DictConfig) -> None:
     train_env = gym.wrappers.FrameStack(train_env, num_stack=config.preprocessing.n_frames_per_state)
 
     # create the testing environment
-    test_env = gym.make(config.env_name, obs_type="rgb", render_mode="human")
+    render_mode = None if in_colab else "human"
+    test_env = gym.make(config.env_name, obs_type="rgb", render_mode=render_mode)
 
     # apply Atari preprocessing
     test_env = gym.wrappers.AtariPreprocessing(test_env,
@@ -79,8 +82,8 @@ def trainer(config: DictConfig) -> None:
     # Instantiate the recorder wrapper around gym's environment to record and
     # visualize the environment
     episode_trigger = partial(checkpoint_episode_trigger, checkpoint_every=config.checkpoint_every)
-    test_env = RecordVideo(test_env, video_folder=f'{config.home_directory}video', episode_trigger=episode_trigger,
-                           name_prefix=config.video_file)
+    test_env = gym.wrappers.RecordVideo(test_env, video_folder=f'{config.home_directory}video',
+                                        episode_trigger=episode_trigger, name_prefix=config.video_file)
     test_env.episode_id = 1
     test_env.step_id = 1
 

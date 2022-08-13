@@ -9,8 +9,8 @@ preprocessing:
   clip_rewards: true
   fire_reset: false
 buffer_capacity: 1000000
-num_initial_replay_samples: 100 # 50000
-num_episodes: 2000
+num_initial_replay_samples: 50000
+num_episodes: 20000
 batch_size: 32
 eps_max: 1
 eps_min: 0.1
@@ -18,7 +18,7 @@ eps_decay_steps: 1000000
 gamma: 0.99  # discount factor
 c: 10000  # num steps after which to do target update
 save_video_every: 100
-checkpoint_every: 250
+checkpoint_every: 1000
 home_directory: /Users/pierclgr/PycharmProjects/AAS_project/
 env_name: BreakoutNoFrameskip-v4
 game: Breakout
@@ -27,7 +27,7 @@ video_file: breakout
 model: DQNNetwork
 output_model_file: breakout_final_model
 max_steps_per_episode: 10000
-logging: false # true
+logging:  true
 in_colab: true
 reproducibility:
   train_seed: 1507

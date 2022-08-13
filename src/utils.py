@@ -27,7 +27,8 @@ class StateTransition(object):
                f"next_state: {self.next_state}, done: {self.done})"
 
 
-def set_seeds(seed: int = 1507) -> None:
+def set_reproducibility(training_env: gym.Env, testing_env: gym.Env, train_seed: int = 1507,
+                        test_seed: int = 2307) -> None:
     """
     Method to set the seeds of random components to allow reproducibility
 
@@ -36,13 +37,24 @@ def set_seeds(seed: int = 1507) -> None:
     """
 
     # set random seed
-    random.seed(seed)
+    random.seed(train_seed)
 
     # set numpy random seed
-    np.random.seed(seed)
+    np.random.seed(train_seed)
 
     # set pytorch random seed
-    torch.manual_seed(seed)
+    torch.manual_seed(train_seed)
+    torch.cuda.manual_seed(train_seed)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    torch.use_deterministic_algorithms(True)
+
+    # set seeds for gym environments
+    training_env.seed(train_seed)
+    training_env.action_space.seed(train_seed)
+
+    testing_env.seed(test_seed)
+    testing_env.action_space.seed(test_seed)
 
 
 def get_device() -> torch.device:

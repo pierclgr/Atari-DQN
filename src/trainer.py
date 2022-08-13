@@ -5,11 +5,12 @@ from src.agents import DQNAgent
 import importlib
 import gym
 from logger import WandbLogger
-from src.utils import set_seeds, get_device, checkpoint_episode_trigger
+from src.utils import set_reproducibility, get_device, checkpoint_episode_trigger
 from functools import partial
 import sys
 import hydra
 from omegaconf import DictConfig, OmegaConf
+import torch
 
 
 @hydra.main(version_base=None, config_path="../config/", config_name="breakout")
@@ -19,14 +20,23 @@ def trainer(config: DictConfig) -> None:
     # get the device
     device = get_device()
 
+    # create the training environment
+    train_env = gym.make(config.env_name, obs_type="rgb", max_episode_steps=config.max_steps_per_episode)
+
+    # create the testing environment
+    render_mode = "rgb_array" if in_colab else "human"
+    test_env = gym.make(config.env_name, obs_type="rgb", max_episode_steps=config.max_steps_per_episode,
+                        render_mode=render_mode)
+
     # set seeds for reproducibility
-    set_seeds(seed=config.train_seed)
+    set_reproducibility(training_env=train_env, testing_env=test_env, train_seed=config.train_seed,
+                        test_seed=config.test_seed)
 
     configuration = OmegaConf.to_object(config)
 
     # initialize logger
     if config.logging:
-        logger = WandbLogger(name="DQN", config=configuration)
+        logger = WandbLogger(name=f"{config.game}_DQN", config=configuration)
     else:
         logger = None
 
@@ -34,25 +44,17 @@ def trainer(config: DictConfig) -> None:
     print("Training configuration:")
     pprint.pprint(configuration)
 
-    # create the training environment
-    train_env = gym.make(config.env_name, obs_type="rgb", max_episode_steps=config.max_steps_per_episode)
-
     # apply Atari preprocessing
     train_env = gym.wrappers.AtariPreprocessing(train_env,
-                                                noop_max=config.preprocessing.n_frames_per_state,
+                                                noop_max=config.preprocessing.no_op_max,
                                                 frame_skip=config.preprocessing.n_frames_to_skip,
                                                 screen_size=config.preprocessing.patch_size,
                                                 grayscale_obs=config.preprocessing.grayscale)
     train_env = gym.wrappers.FrameStack(train_env, num_stack=config.preprocessing.n_frames_per_state)
 
-    # create the testing environment
-    render_mode = "rgb_array" if in_colab else "human"
-    test_env = gym.make(config.env_name, obs_type="rgb", render_mode=render_mode,
-                        max_episode_steps=config.max_steps_per_episode)
-
     # apply Atari preprocessing
     test_env = gym.wrappers.AtariPreprocessing(test_env,
-                                               noop_max=config.preprocessing.n_frames_per_state,
+                                               noop_max=config.preprocessing.no_op_max,
                                                frame_skip=config.preprocessing.n_frames_to_skip,
                                                screen_size=config.preprocessing.patch_size,
                                                grayscale_obs=config.preprocessing.grayscale)
@@ -74,8 +76,10 @@ def trainer(config: DictConfig) -> None:
                      num_episodes=config.num_episodes, batch_size=config.batch_size, discount_rate=config.gamma,
                      target_update_steps=config.c, logger=logger, eps_max=config.eps_max, eps_min=config.eps_min,
                      eps_decay_steps=config.eps_decay_steps, checkpoint_every=config.checkpoint_every,
-                     home_directory=config.home_directory, seed=config.train_seed, testing_seed=config.test_seed,
-                     learning_rate=config.lr)
+                     home_directory=config.home_directory, learning_rate=config.optimizer.lr,
+                     num_initial_replay_samples=config.num_initial_replay_samples,
+                     gradient_momentum=config.optimizer.momentum, gradient_alpha=config.optimizer.squared_momentum,
+                     gradient_eps=config.optimizer.min_squared_gradient)
 
     # train the environment
     agent.train()

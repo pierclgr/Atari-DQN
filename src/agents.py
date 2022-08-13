@@ -39,22 +39,24 @@ class DQNAgent(Agent):
     def __init__(self,
                  env: gym.Env,
                  testing_env: gym.Env,
-                 q_function: Type[RLNetwork],
                  device: torch.device,
-                 seed: int,
-                 testing_seed: int,
                  home_directory: str,
                  checkpoint_file: str,
-                 buffer_capacity: int,
-                 num_episodes: int,
-                 batch_size: int,
-                 eps_max: float,
-                 eps_min: float,
-                 eps_decay_steps: int,
-                 discount_rate: float,
-                 target_update_steps: int,
-                 learning_rate: float,
-                 checkpoint_every: int,
+                 q_function: Type[RLNetwork] = DQNNetwork,
+                 buffer_capacity: int = 1000000,
+                 num_episodes: int = 500,
+                 batch_size: int = 32,
+                 eps_max: float = 1,
+                 eps_min: float = 0.1,
+                 eps_decay_steps: int = 1000000,
+                 discount_rate: float = 0.99,
+                 target_update_steps: int = 10000,
+                 learning_rate: float = 0.00025,
+                 checkpoint_every: int = 100,
+                 num_initial_replay_samples: int = 50000,
+                 gradient_momentum: float = 0.95,
+                 gradient_alpha: float = 0.95,
+                 gradient_eps: float = 0.01,
                  criterion: nn.Module = None,
                  optimizer: torch.optim.Optimizer = None,
                  logger: Logger = None
@@ -75,16 +77,27 @@ class DQNAgent(Agent):
         self.logger = logger
         self.checkpoint_every = checkpoint_every
         self.home_directory = home_directory
-        self.seed = seed
-        self.testing_seed = testing_seed
         self.checkpoint_file = checkpoint_file
+        self.num_initial_replay_samples = num_initial_replay_samples
+        self.gradient_momentum = gradient_momentum
+        self.gradient_alpha = gradient_alpha
+        self.gradient_eps = gradient_eps
 
         self.replay_buffer = ReplayBuffer(capacity=buffer_capacity)
 
-        self.q_function = q_function(input_shape=env.observation_space.shape,
+        self.one_frame_input = False
+
+        input_shape = env.observation_space.shape
+        if len(input_shape) < 3:
+            self.one_frame_input = True
+            input_shape = (1,) + input_shape
+
+        self.input_shape = input_shape
+
+        self.q_function = q_function(input_shape=self.input_shape,
                                      output_channels=env.action_space.n).to(device=self.device)
 
-        self.target_q_function = q_function(input_shape=env.observation_space.shape,
+        self.target_q_function = q_function(input_shape=self.input_shape,
                                             output_channels=env.action_space.n).to(device=self.device)
         self.target_q_function.load_state_dict(self.q_function.state_dict())
 
@@ -94,7 +107,9 @@ class DQNAgent(Agent):
         self.criterion = criterion
 
         if not optimizer:
-            optimizer = torch.optim.RMSprop(self.q_function.parameters(), lr=self.learning_rate)
+            optimizer = torch.optim.RMSprop(self.q_function.parameters(), lr=self.learning_rate,
+                                            momentum=self.gradient_momentum, alpha=self.gradient_alpha,
+                                            eps=self.gradient_eps)
 
         self.optimizer = optimizer
 
@@ -102,21 +117,23 @@ class DQNAgent(Agent):
         self.q_function.eval()
         self.target_q_function.eval()
         with torch.no_grad():
-            # if n_samples is not specified we set it to the maximum buffer capacity
+            # if n_samples is not specified we set it to the initial number of replay samples
             if n_samples is None:
-                n_samples = self.replay_buffer.capacity
+                n_samples = self.num_initial_replay_samples
+
+            print(f"Initializing replay buffer with {n_samples} samples...")
 
             # if the replay buffer is has not been filled with the defined amount of samples yes
             full = False
             with tqdm(total=n_samples) as init_pbar:
                 while not full:
                     # reset the environment and get the initial state to start a new episode
-                    self.env.seed(seed=self.seed)
-                    self.env.action_space.seed(seed=self.seed)
-                    previous_state = self.env.reset(seed=self.seed)
+                    previous_state = self.env.reset()
 
                     # convert the initial state to np array
                     previous_state = np.asarray(previous_state)
+                    if self.one_frame_input:
+                        previous_state = np.expand_dims(previous_state, axis=0)
 
                     # convert the initial state to torch tensor, unsqueeze it to feed it as a sample to the network and
                     # cast to float tensor
@@ -133,12 +150,14 @@ class DQNAgent(Agent):
 
                         # convert the new state to numpy array
                         current_state = np.asarray(current_state)
+                        if self.one_frame_input:
+                            current_state = np.expand_dims(current_state, axis=0)
 
                         # convert the initial state to torch tensor and cast to float tensor
                         current_state = torch.as_tensor(current_state).float().to(self.device)
 
                         # squeeze the previous state in order to store it in the buffer
-                        previous_state = previous_state.squeeze()
+                        previous_state = previous_state.squeeze(dim=0)
 
                         # add the state transition to the replay buffer
                         self.store_experience(StateTransition(state=previous_state, action=action, reward=reward,
@@ -193,7 +212,6 @@ class DQNAgent(Agent):
             # initialize replay buffer to specified capacity by following the agent policy and setting the q_function
             # network to eval mode to avoid any training; at the same time, we use torch.no_grad to avoid gradient
             # computation
-            print(f"Initializing replay buffer with {self.replay_buffer.capacity} samples...")
             self.initialize_experience()
 
             # for each episode
@@ -220,12 +238,12 @@ class DQNAgent(Agent):
         while cur_episode < self.num_episodes:
             print(f"Episode {cur_episode + 1}...")
             # reset the environment and get the initial state to start a new episode
-            self.env.seed(seed=self.seed)
-            self.env.action_space.seed(seed=self.seed)
-            previous_state = self.env.reset(seed=self.seed)
+            previous_state = self.env.reset()
 
             # convert the initial state to np array
             previous_state = np.asarray(previous_state)
+            if self.one_frame_input:
+                previous_state = np.expand_dims(previous_state, axis=0)
 
             # convert the initial state to torch tensor, unsqueeze it to feed it as a sample to the network and cast
             # to float tensor
@@ -252,12 +270,14 @@ class DQNAgent(Agent):
 
                     # convert the new state to numpy array
                     current_state = np.asarray(current_state)
+                    if self.one_frame_input:
+                        current_state = np.expand_dims(current_state, axis=0)
 
                     # convert the initial state to torch tensor and cast to float tensor
                     current_state = torch.as_tensor(current_state).float().to(self.device)
 
                     # squeeze the previous state in order to store it in the buffer
-                    previous_state = previous_state.squeeze()
+                    previous_state = previous_state.squeeze(dim=0)
 
                     # store the transition to the replay buffer memory
                     state_transition = StateTransition(state=previous_state, action=action, reward=reward,
@@ -346,7 +366,7 @@ class DQNAgent(Agent):
                     if total_steps % self.target_update_steps == 0:
                         self.target_q_function.load_state_dict(self.q_function.state_dict())
 
-                    train_pbar.update(self.env.num_stack)
+                    train_pbar.update(self.env.frame_skip)
 
             # add the episode reward to the average reward
             total_reward += episode_reward
@@ -408,11 +428,11 @@ class DQNAgent(Agent):
             print(f"Testing...")
 
             # reset the environment and get the initial state to start a new episode
-            self.testing_env.seed(seed=self.testing_seed)
-            self.testing_env.action_space.seed(seed=self.testing_seed)
-            previous_state = self.testing_env.reset(seed=self.testing_seed)
+            previous_state = self.testing_env.reset()
             # convert the initial state to np array
             previous_state = np.asarray(previous_state)
+            if self.one_frame_input:
+                previous_state = np.expand_dims(previous_state, axis=0)
 
             # convert the initial state to torch tensor, unsqueeze it to feed it as a sample to the network and cast
             # to float tensor
@@ -434,6 +454,8 @@ class DQNAgent(Agent):
 
                     # convert the new state to numpy array
                     current_state = np.asarray(current_state)
+                    if self.one_frame_input:
+                        current_state = np.expand_dims(current_state, axis=0)
 
                     # convert the initial state to torch tensor and cast to float tensor
                     current_state = torch.as_tensor(current_state).float().to(self.device)
@@ -442,7 +464,7 @@ class DQNAgent(Agent):
                     # network
                     previous_state = current_state.unsqueeze(axis=0)
 
-                    test_pbar.update(self.testing_env.num_stack)
+                    test_pbar.update(self.env.frame_skip)
 
         return episode_reward
 

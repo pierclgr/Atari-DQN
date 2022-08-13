@@ -29,7 +29,7 @@ class DQNNetwork(RLNetwork):
     def __init__(self, input_shape: tuple, output_channels: int) -> None:
         super(DQNNetwork, self).__init__(input_shape, output_channels)
         self.backbone = nn.Sequential(
-            nn.Conv2d(in_channels=self.input_shape[0], out_channels=32, kernel_size=(8, 8), stride=(2, 2)),
+            nn.Conv2d(in_channels=self.input_shape[0], out_channels=32, kernel_size=(8, 8), stride=(4, 4)),
             nn.ReLU(),
 
             nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(4, 4), stride=(2, 2)),
@@ -49,10 +49,3 @@ class DQNNetwork(RLNetwork):
             self.backbone,
             self.dense
         )
-
-
-if __name__ == "__main__":
-    x = torch.empty(size=(2, 4, 64, 64))
-
-    model = DQNNetwork((4, 64, 64), 4)
-    x = model(x)

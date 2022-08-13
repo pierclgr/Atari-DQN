@@ -4,7 +4,8 @@ preprocessing:
   patch_size: 84
   grayscale: true
   no_op_max: 30
-buffer_capacity: 50000 #1000000
+buffer_capacity: 1000000
+num_initial_replay_samples: 50000
 num_episodes: 500
 batch_size: 32
 eps_max: 1
@@ -26,7 +27,6 @@ logging: true
 in_colab: true
 train_seed: 1507
 test_seed: 2307
-num_initial_replay_samples: 50000
 optimizer:
   lr: 0.00025
   momentum: 0.95

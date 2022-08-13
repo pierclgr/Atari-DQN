@@ -4,9 +4,10 @@ preprocessing:
   patch_size: 84
   grayscale: true
   noop_max: 30
-  scale_obs: True
-  episode_life: True
-  clip_rewards: True
+  scale_obs: true
+  episode_life: true
+  clip_rewards: true
+  fire_reset_env: true
 buffer_capacity: 1000000
 num_initial_replay_samples: 50000
 num_episodes: 500

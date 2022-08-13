@@ -29,7 +29,7 @@ def trainer(config: DictConfig) -> None:
     test_env = gym.make(config.env_name, obs_type="rgb", render_mode=render_mode)
 
     # set seeds for reproducibility
-    set_reproducibility(train_seed=config.train_seed,
+    set_reproducibility(training_env=train_env, testing_env=test_env, train_seed=config.train_seed,
                         test_seed=config.test_seed)
 
     configuration = OmegaConf.to_object(config)
@@ -78,7 +78,7 @@ def trainer(config: DictConfig) -> None:
     model = getattr(importlib.import_module("src.models"), config.model)
 
     # initialize the agent
-    agent = DQNAgent(env=test_env, testing_env=test_env, device=device, q_function=model,
+    agent = DQNAgent(env=train_env, testing_env=test_env, device=device, q_function=model,
                      buffer_capacity=config.buffer_capacity, checkpoint_file=config.checkpoint_file,
                      num_episodes=config.num_episodes, batch_size=config.batch_size, discount_rate=config.gamma,
                      target_update_steps=config.c, logger=logger, eps_max=config.eps_max, eps_min=config.eps_min,

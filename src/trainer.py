@@ -11,6 +11,7 @@ import sys
 import hydra
 from omegaconf import DictConfig, OmegaConf
 import torch
+from baselines.common.atari_wrappers import ClipRewardEnv
 
 
 @hydra.main(version_base=None, config_path="../config/", config_name="breakout")
@@ -51,6 +52,7 @@ def trainer(config: DictConfig) -> None:
                                                 screen_size=config.preprocessing.patch_size,
                                                 grayscale_obs=config.preprocessing.grayscale)
     train_env = gym.wrappers.FrameStack(train_env, num_stack=config.preprocessing.n_frames_per_state)
+    train_env = ClipRewardEnv(train_env)
 
     # apply Atari preprocessing
     test_env = gym.wrappers.AtariPreprocessing(test_env,

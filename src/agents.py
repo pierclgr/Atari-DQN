@@ -361,8 +361,7 @@ class DQNAgent(Agent):
                     if total_steps % self.target_update_steps == 0:
                         self.target_q_function.load_state_dict(self.q_function.state_dict())
 
-                    update = self.env.frame_skip if hasattr(self.env, "frame_skip") else 1
-                    train_pbar.update(update)
+                    train_pbar.update(1)
 
             # add the episode reward to the average reward
             total_reward += episode_reward

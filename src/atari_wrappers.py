@@ -5,8 +5,6 @@ import gym
 import numpy as np
 import cv2
 
-from gym.wrappers import TimeLimit
-
 
 class NoopResetEnv(gym.Wrapper):
     def __init__(self, env, noop_max=30):
@@ -291,7 +289,6 @@ def deepmind_atari_wrappers(env, max_episode_steps: int = None, noop_max: int = 
                             episode_life: bool = True, clip_rewards: bool = True, frame_stack: int = 4,
                             scale: bool = True, patch_size: int = 84, grayscale: bool = True,
                             fire_reset: bool = True):
-
     if noop_max > 0:
         env = NoopResetEnv(env, noop_max=noop_max)
     if frame_skip > 0:

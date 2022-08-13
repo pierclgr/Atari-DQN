@@ -4,7 +4,7 @@ preprocessing:
   patch_size: 84
   grayscale: true
   no_op_max: 30
-buffer_capacity: 1000000
+buffer_capacity: 50000 #1000000
 num_episodes: 500
 batch_size: 32
 eps_max: 1
@@ -12,7 +12,8 @@ eps_min: 0.1
 eps_decay_steps: 1000000
 gamma: 0.99  # discount factor
 c: 10000  # num steps after which to do target update
-checkpoint_every: 100
+save_video_every: 100
+checkpoint_every: 250
 home_directory: /Users/pierclgr/PycharmProjects/AAS_project/
 env_name: BreakoutNoFrameskip-v4
 game: Breakout

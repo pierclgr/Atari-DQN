@@ -62,7 +62,7 @@ def trainer(config: DictConfig) -> None:
 
     # Instantiate the recorder wrapper around gym's environment to record and
     # visualize the environment
-    episode_trigger = partial(checkpoint_episode_trigger, checkpoint_every=config.checkpoint_every)
+    episode_trigger = partial(checkpoint_episode_trigger, checkpoint_every=config.save_video_every)
     test_env = gym.wrappers.RecordVideo(test_env, video_folder=f'{config.home_directory}videos',
                                         name_prefix=config.video_file, episode_trigger=episode_trigger)
     test_env.episode_id = 1

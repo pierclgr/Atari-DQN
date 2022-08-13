@@ -204,6 +204,7 @@ class DQNAgent(Agent):
             if self.logger:
                 self.logger.log("train_loss", train_loss, cur_episode)
                 self.logger.log("eps", self.eps, cur_episode)
+                self.logger.log("total_steps", total_steps, cur_episode)
                 self.logger.log("episode_reward", episode_reward, cur_episode)
                 self.logger.log("average_reward", average_reward, cur_episode)
                 self.logger.log("test_episode_reward", test_episode_reward, cur_episode)
@@ -232,7 +233,7 @@ class DQNAgent(Agent):
             with tqdm(total=self.env.spec.max_episode_steps) as train_pbar:
                 while not done:
                     # decay eps accordingly to the current number of steps
-                    self.eps_decay(total_steps)
+                    self.eps_decay(total_steps * self.env.frame_skip * self.env.k)
 
                     # select an action to perform based on the agent policy
                     action = self.get_action(previous_state, train=True)
@@ -354,14 +355,16 @@ class DQNAgent(Agent):
             if self.logger:
                 self.logger.log("train_loss", train_loss, cur_episode)
                 self.logger.log("eps", self.eps, cur_episode)
+                self.logger.log("total_steps", total_steps, cur_episode)
                 self.logger.log("episode_reward", episode_reward, cur_episode)
                 self.logger.log("average_reward", average_reward, cur_episode)
                 self.logger.log("test_episode_reward", test_episode_reward, cur_episode)
                 self.logger.log("test_average_reward", test_average_reward, cur_episode)
 
-            print(f"train_loss: {train_loss}, eps: {self.eps}, episode_reward: {episode_reward}, "
-                  f"average_reward: {average_reward}, test_episode_reward: {test_episode_reward}, "
-                  f"test_average_reward: {test_average_reward}")
+            print(
+                f"train_loss: {train_loss}, eps: {self.eps}, total_steps: {total_steps}, "
+                f"episode_reward: {episode_reward}, average_reward: {average_reward}, "
+                f"test_episode_reward: {test_episode_reward}, test_average_reward: {test_average_reward}")
 
             # checkpoint the training every defined steps
             if (cur_episode + 1) % self.checkpoint_every == 0:

@@ -12,6 +12,7 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 import torch
 from src.atari_wrappers import deepmind_atari_wrappers
+from gym.wrappers import TimeLimit
 
 
 @hydra.main(version_base=None, config_path="../config/", config_name="breakout")

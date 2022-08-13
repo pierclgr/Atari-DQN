@@ -189,6 +189,8 @@ class DQNAgent(Agent):
             test_total_reward = 0
             cur_episode = 0
 
+            total_frames = total_steps * self.env.frame_skip * self.env.k
+
             # initialize replay buffer to specified capacity by following the agent policy and setting the q_function
             # network to eval mode to avoid any training; at the same time, we use torch.no_grad to avoid gradient
             # computation
@@ -200,11 +202,13 @@ class DQNAgent(Agent):
             cur_episode, train_loss, average_reward, episode_reward, eps, total_reward, total_steps, \
             test_average_reward, test_episode_reward, test_total_reward = checkpoint_info
 
+            total_frames = total_steps * self.env.frame_skip * self.env.k
+
             # if logging is required, we update it at the end of every episode
             if self.logger:
                 self.logger.log("train_loss", train_loss, cur_episode)
                 self.logger.log("eps", self.eps, cur_episode)
-                self.logger.log("total_steps", total_steps, cur_episode)
+                self.logger.log("total_frames", total_frames, cur_episode)
                 self.logger.log("episode_reward", episode_reward, cur_episode)
                 self.logger.log("average_reward", average_reward, cur_episode)
                 self.logger.log("test_episode_reward", test_episode_reward, cur_episode)
@@ -233,7 +237,7 @@ class DQNAgent(Agent):
             with tqdm(total=self.env.spec.max_episode_steps) as train_pbar:
                 while not done:
                     # decay eps accordingly to the current number of steps
-                    self.eps_decay(total_steps * self.env.frame_skip * self.env.k)
+                    self.eps_decay(total_frames)
 
                     # select an action to perform based on the agent policy
                     action = self.get_action(previous_state, train=True)
@@ -327,6 +331,8 @@ class DQNAgent(Agent):
                     total_steps += 1
                     episode_steps += 1
 
+                    total_frames = total_steps * self.env.frame_skip * self.env.k
+
                     # every C gradient descent steps, we need to reset the target_q_function weights by setting its
                     # weights
                     # to the weights of the q_function
@@ -355,14 +361,14 @@ class DQNAgent(Agent):
             if self.logger:
                 self.logger.log("train_loss", train_loss, cur_episode)
                 self.logger.log("eps", self.eps, cur_episode)
-                self.logger.log("total_steps", total_steps, cur_episode)
+                self.logger.log("total_frames", total_frames, cur_episode)
                 self.logger.log("episode_reward", episode_reward, cur_episode)
                 self.logger.log("average_reward", average_reward, cur_episode)
                 self.logger.log("test_episode_reward", test_episode_reward, cur_episode)
                 self.logger.log("test_average_reward", test_average_reward, cur_episode)
 
             print(
-                f"train_loss: {train_loss}, eps: {self.eps}, total_steps: {total_steps}, "
+                f"train_loss: {train_loss}, eps: {self.eps}, total_frames: {total_frames}, "
                 f"episode_reward: {episode_reward}, average_reward: {average_reward}, "
                 f"test_episode_reward: {test_episode_reward}, test_average_reward: {test_average_reward}")
 

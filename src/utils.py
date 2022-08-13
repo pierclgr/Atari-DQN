@@ -27,7 +27,7 @@ class StateTransition(object):
                f"next_state: {self.next_state}, done: {self.done})"
 
 
-def set_reproducibility(training_env: gym.Env, testing_env: gym.Env, train_seed: int = 1507,
+def set_reproducibility(training_env: gym.Env = None, testing_env: gym.Env = None, train_seed: int = 1507,
                         test_seed: int = 2307) -> None:
     """
     Method to set the seeds of random components to allow reproducibility
@@ -51,11 +51,13 @@ def set_reproducibility(training_env: gym.Env, testing_env: gym.Env, train_seed:
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
     # set seeds for gym environments
-    training_env.seed(train_seed)
-    training_env.action_space.seed(train_seed)
+    if training_env is not None:
+        training_env.seed(train_seed)
+        training_env.action_space.seed(train_seed)
 
-    testing_env.seed(test_seed)
-    testing_env.action_space.seed(test_seed)
+    if testing_env is not None:
+        testing_env.seed(test_seed)
+        testing_env.action_space.seed(test_seed)
 
 
 def get_device() -> torch.device:

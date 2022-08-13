@@ -21,6 +21,7 @@ class RLNetwork(nn.Module):
         return flattened_tensor_dimension
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        print(x.size())
         x = self.network(x)
         return x
 

@@ -87,12 +87,9 @@ class DQNAgent(Agent):
 
         self.one_frame_input = False
 
-        input_shape = env.observation_space.shape
-        if len(input_shape) < 3:
-            self.one_frame_input = True
-            input_shape = (1,) + input_shape
-
-        self.input_shape = input_shape
+        self.input_shape = (env.observation_space.shape[2],
+                            env.observation_space.shape[0],
+                            env.observation_space.shape[1])
 
         self.q_function = q_function(input_shape=self.input_shape,
                                      output_channels=env.action_space.n).to(device=self.device)
@@ -131,9 +128,7 @@ class DQNAgent(Agent):
                     previous_state = self.env.reset()
 
                     # convert the initial state to np array
-                    previous_state = np.asarray(previous_state)
-                    if self.one_frame_input:
-                        previous_state = np.expand_dims(previous_state, axis=0)
+                    previous_state = np.asarray(previous_state).transpose((2, 0, 1))
 
                     # convert the initial state to torch tensor, unsqueeze it to feed it as a sample to the network and
                     # cast to float tensor
@@ -149,7 +144,7 @@ class DQNAgent(Agent):
                         current_state, reward, done, info = self.env.step(action)
 
                         # convert the new state to numpy array
-                        current_state = np.asarray(current_state)
+                        current_state = np.asarray(current_state).transpose((2, 0, 1))
                         if self.one_frame_input:
                             current_state = np.expand_dims(current_state, axis=0)
 
@@ -241,7 +236,7 @@ class DQNAgent(Agent):
             previous_state = self.env.reset()
 
             # convert the initial state to np array
-            previous_state = np.asarray(previous_state)
+            previous_state = np.asarray(previous_state).transpose((2, 0, 1))
             if self.one_frame_input:
                 previous_state = np.expand_dims(previous_state, axis=0)
 
@@ -269,7 +264,7 @@ class DQNAgent(Agent):
                     episode_reward += reward
 
                     # convert the new state to numpy array
-                    current_state = np.asarray(current_state)
+                    current_state = np.asarray(current_state).transpose((2, 0, 1))
                     if self.one_frame_input:
                         current_state = np.expand_dims(current_state, axis=0)
 
@@ -348,7 +343,7 @@ class DQNAgent(Agent):
 
                     # now we compute the loss between predicted rewards and target rewards and perform a gradient
                     # descent
-                    # step over the parameters of the q_funciton
+                    # step over the parameters of the q_function
                     loss = self.criterion(target_q_values, q_values)
                     loss.backward()
                     self.optimizer.step()
@@ -366,7 +361,8 @@ class DQNAgent(Agent):
                     if total_steps % self.target_update_steps == 0:
                         self.target_q_function.load_state_dict(self.q_function.state_dict())
 
-                    train_pbar.update(self.env.frame_skip)
+                    update = self.env.frame_skip if hasattr(self.env, "frame_skip") else 1
+                    train_pbar.update(update)
 
             # add the episode reward to the average reward
             total_reward += episode_reward
@@ -430,7 +426,7 @@ class DQNAgent(Agent):
             # reset the environment and get the initial state to start a new episode
             previous_state = self.testing_env.reset()
             # convert the initial state to np array
-            previous_state = np.asarray(previous_state)
+            previous_state = np.asarray(previous_state).transpose((2, 0, 1))
             if self.one_frame_input:
                 previous_state = np.expand_dims(previous_state, axis=0)
 
@@ -453,7 +449,7 @@ class DQNAgent(Agent):
                     episode_reward += reward
 
                     # convert the new state to numpy array
-                    current_state = np.asarray(current_state)
+                    current_state = np.asarray(current_state).transpose((2, 0, 1))
                     if self.one_frame_input:
                         current_state = np.expand_dims(current_state, axis=0)
 
@@ -464,7 +460,8 @@ class DQNAgent(Agent):
                     # network
                     previous_state = current_state.unsqueeze(axis=0)
 
-                    test_pbar.update(self.env.frame_skip)
+                    update = self.testing_env.frame_skip if hasattr(self.testing_env, "frame_skip") else 1
+                    test_pbar.update(update)
 
         return episode_reward
 

@@ -22,4 +22,4 @@ outputs/
 *.egg-info/
 
 # videos
-video/
+videos/

@@ -3,7 +3,10 @@ preprocessing:
   n_frames_per_state: 4
   patch_size: 84
   grayscale: true
-  no_op_max: 30
+  noop_max: 30
+  scale_obs: True
+  episode_life: True
+  clip_rewards: True
 buffer_capacity: 1000000
 num_initial_replay_samples: 50000
 num_episodes: 500

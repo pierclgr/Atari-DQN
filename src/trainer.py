@@ -11,7 +11,7 @@ import sys
 import hydra
 from omegaconf import DictConfig, OmegaConf
 import torch
-from baselines.common.atari_wrappers import ClipRewardEnv
+from src.atari_wrappers import deepmind_atari_wrappers
 
 
 @hydra.main(version_base=None, config_path="../config/", config_name="breakout")
@@ -22,12 +22,11 @@ def trainer(config: DictConfig) -> None:
     device = get_device()
 
     # create the training environment
-    train_env = gym.make(config.env_name, obs_type="rgb", max_episode_steps=config.max_steps_per_episode)
+    train_env = gym.make(config.env_name, obs_type="rgb")
 
     # create the testing environment
     render_mode = "rgb_array" if in_colab else "human"
-    test_env = gym.make(config.env_name, obs_type="rgb", max_episode_steps=config.max_steps_per_episode,
-                        render_mode=render_mode)
+    test_env = gym.make(config.env_name, obs_type="rgb", render_mode=render_mode)
 
     # set seeds for reproducibility
     set_reproducibility(training_env=train_env, testing_env=test_env, train_seed=config.train_seed,
@@ -46,21 +45,25 @@ def trainer(config: DictConfig) -> None:
     pprint.pprint(configuration)
 
     # apply Atari preprocessing
-    train_env = gym.wrappers.AtariPreprocessing(train_env,
-                                                noop_max=config.preprocessing.no_op_max,
-                                                frame_skip=config.preprocessing.n_frames_to_skip,
-                                                screen_size=config.preprocessing.patch_size,
-                                                grayscale_obs=config.preprocessing.grayscale)
-    train_env = gym.wrappers.FrameStack(train_env, num_stack=config.preprocessing.n_frames_per_state)
-    train_env = ClipRewardEnv(train_env)
-
+    train_env = deepmind_atari_wrappers(train_env, max_episode_steps=config.max_steps_per_episode,
+                                        noop_max=config.preprocessing.noop_max,
+                                        frame_skip=config.preprocessing.n_frames_to_skip,
+                                        episode_life=config.preprocessing.episode_life,
+                                        clip_rewards=config.preprocessing.clip_rewards,
+                                        frame_stack=config.preprocessing.n_frames_per_state,
+                                        scale=config.preprocessing.scale_obs,
+                                        patch_size=config.preprocessing.patch_size,
+                                        grayscale=config.preprocessing.grayscale)
     # apply Atari preprocessing
-    test_env = gym.wrappers.AtariPreprocessing(test_env,
-                                               noop_max=config.preprocessing.no_op_max,
-                                               frame_skip=config.preprocessing.n_frames_to_skip,
-                                               screen_size=config.preprocessing.patch_size,
-                                               grayscale_obs=config.preprocessing.grayscale)
-    test_env = gym.wrappers.FrameStack(test_env, num_stack=config.preprocessing.n_frames_per_state)
+    test_env = deepmind_atari_wrappers(test_env, max_episode_steps=config.max_steps_per_episode,
+                                       noop_max=config.preprocessing.noop_max,
+                                       frame_skip=config.preprocessing.n_frames_to_skip,
+                                       episode_life=config.preprocessing.episode_life,
+                                       clip_rewards=config.preprocessing.clip_rewards,
+                                       frame_stack=config.preprocessing.n_frames_per_state,
+                                       scale=config.preprocessing.scale_obs,
+                                       patch_size=config.preprocessing.patch_size,
+                                       grayscale=config.preprocessing.grayscale)
 
     # Instantiate the recorder wrapper around gym's environment to record and
     # visualize the environment

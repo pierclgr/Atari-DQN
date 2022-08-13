@@ -85,8 +85,6 @@ class DQNAgent(Agent):
 
         self.replay_buffer = ReplayBuffer(capacity=buffer_capacity)
 
-        self.one_frame_input = False
-
         self.input_shape = env.observation_space.shape
 
         self.q_function = q_function(input_shape=self.input_shape,
@@ -125,12 +123,9 @@ class DQNAgent(Agent):
                     # reset the environment and get the initial state to start a new episode
                     previous_state = self.env.reset()
 
-                    # convert the initial state to np array
-                    previous_state = np.asarray(previous_state)
-
                     # convert the initial state to torch tensor, unsqueeze it to feed it as a sample to the network and
                     # cast to float tensor
-                    previous_state = torch.as_tensor(previous_state).unsqueeze(axis=0).float().to(self.device)
+                    previous_state = torch.as_tensor(previous_state).to(self.device).unsqueeze(axis=0).float()
                     done = False
 
                     # while the current episode is not done
@@ -141,16 +136,8 @@ class DQNAgent(Agent):
                         # perform the selected action and get the new state
                         current_state, reward, done, info = self.env.step(action)
 
-                        # convert the new state to numpy array
-                        current_state = np.asarray(current_state)
-                        if self.one_frame_input:
-                            current_state = np.expand_dims(current_state, axis=0)
-
                         # convert the initial state to torch tensor and cast to float tensor
-                        current_state = torch.as_tensor(current_state).float().to(self.device)
-
-                        # squeeze the previous state in order to store it in the buffer
-                        previous_state = previous_state.squeeze(dim=0)
+                        current_state = torch.as_tensor(current_state).to(self.device).unsqueeze(axis=0).float()
 
                         # add the state transition to the replay buffer
                         self.store_experience(StateTransition(state=previous_state, action=action, reward=reward,
@@ -158,7 +145,7 @@ class DQNAgent(Agent):
 
                         # set the next previous state to the current one and unsqueeze it to feed it as a sample to the
                         # network
-                        previous_state = current_state.unsqueeze(axis=0)
+                        previous_state = current_state
 
                         # if the replay buffer has the specified amount of samples, break the filling operation
                         if len(self.replay_buffer) >= n_samples:
@@ -175,10 +162,10 @@ class DQNAgent(Agent):
         next_states_batch = [sample.next_state for sample in batch]
         dones_batch = [sample.done for sample in batch]
 
-        states_batch = torch.stack(states_batch).to(self.device)
+        states_batch = torch.cat(states_batch, dim=0).to(self.device)
         actions_batch = torch.as_tensor(actions_batch).to(self.device)
         rewards_batch = torch.as_tensor(rewards_batch).to(self.device)
-        next_states_batch = torch.stack(next_states_batch).to(self.device)
+        next_states_batch = torch.cat(next_states_batch, dim=0).to(self.device)
         dones_batch = torch.as_tensor(dones_batch).to(self.device)
 
         return StateTransition(states_batch, actions_batch, rewards_batch, next_states_batch, dones_batch)
@@ -233,14 +220,9 @@ class DQNAgent(Agent):
             # reset the environment and get the initial state to start a new episode
             previous_state = self.env.reset()
 
-            # convert the initial state to np array
-            previous_state = np.asarray(previous_state)
-            if self.one_frame_input:
-                previous_state = np.expand_dims(previous_state, axis=0)
-
             # convert the initial state to torch tensor, unsqueeze it to feed it as a sample to the network and cast
             # to float tensor
-            previous_state = torch.as_tensor(previous_state).unsqueeze(axis=0).float().to(self.device)
+            previous_state = torch.as_tensor(previous_state).to(self.device).unsqueeze(axis=0).float()
             done = False
             episode_reward = 0
             episode_loss = 0
@@ -261,25 +243,16 @@ class DQNAgent(Agent):
                     # add the reward to the total reward of the current episode
                     episode_reward += reward
 
-                    # convert the new state to numpy array
-                    current_state = np.asarray(current_state)
-                    if self.one_frame_input:
-                        current_state = np.expand_dims(current_state, axis=0)
-
                     # convert the initial state to torch tensor and cast to float tensor
-                    current_state = torch.as_tensor(current_state).float().to(self.device)
-
-                    # squeeze the previous state in order to store it in the buffer
-                    previous_state = previous_state.squeeze(dim=0)
+                    current_state = torch.as_tensor(current_state).to(self.device).unsqueeze(axis=0).float()
 
                     # store the transition to the replay buffer memory
-                    state_transition = StateTransition(state=previous_state, action=action, reward=reward,
-                                                       next_state=current_state, done=done)
-                    self.store_experience(state_transition=state_transition)
+                    self.store_experience(state_transition=StateTransition(state=previous_state, action=action,
+                                                                           reward=reward, next_state=current_state,
+                                                                           done=done))
 
-                    # set the next previous state to the current one and unsqueeze it to feed it as a sample to the
-                    # network
-                    previous_state = current_state.unsqueeze(axis=0)
+                    # set the next previous state to the current one
+                    previous_state = current_state
 
                     # sample a random minibatch of transitions
                     state_transitions_batch = self.sample_experience(num_samples=self.batch_size)
@@ -422,14 +395,10 @@ class DQNAgent(Agent):
 
             # reset the environment and get the initial state to start a new episode
             previous_state = self.testing_env.reset()
-            # convert the initial state to np array
-            previous_state = np.asarray(previous_state)
-            if self.one_frame_input:
-                previous_state = np.expand_dims(previous_state, axis=0)
 
             # convert the initial state to torch tensor, unsqueeze it to feed it as a sample to the network and cast
             # to float tensor
-            previous_state = torch.as_tensor(previous_state).unsqueeze(axis=0).float().to(self.device)
+            previous_state = torch.as_tensor(previous_state).to(self.device).unsqueeze(axis=0).float()
             done = False
             episode_reward = 0
 
@@ -445,17 +414,12 @@ class DQNAgent(Agent):
                     # add the reward to the total reward of the current episode
                     episode_reward += reward
 
-                    # convert the new state to numpy array
-                    current_state = np.asarray(current_state)
-                    if self.one_frame_input:
-                        current_state = np.expand_dims(current_state, axis=0)
-
                     # convert the initial state to torch tensor and cast to float tensor
-                    current_state = torch.as_tensor(current_state).float().to(self.device)
+                    current_state = torch.as_tensor(current_state).to(self.device).unsqueeze(axis=0).float()
 
                     # set the next previous state to the current one and unsqueeze it to feed it as a sample to the
                     # network
-                    previous_state = current_state.unsqueeze(axis=0)
+                    previous_state = current_state
 
                     test_pbar.update(1)
 

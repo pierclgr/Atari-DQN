@@ -29,8 +29,8 @@ def trainer(config: DictConfig) -> None:
     test_env = gym.make(config.env_name, obs_type="rgb", render_mode=render_mode)
 
     # set seeds for reproducibility
-    set_reproducibility(training_env=train_env, testing_env=test_env, train_seed=config.train_seed,
-                        test_seed=config.test_seed)
+    set_reproducibility(training_env=train_env, testing_env=test_env, train_seed=config.reproducibility.train_seed,
+                        test_seed=config.reproducibility.test_seed)
 
     configuration = OmegaConf.to_object(config)
 

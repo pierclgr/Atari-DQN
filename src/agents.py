@@ -460,8 +460,7 @@ class DQNAgent(Agent):
                     # network
                     previous_state = current_state.unsqueeze(axis=0)
 
-                    update = self.testing_env.frame_skip if hasattr(self.testing_env, "frame_skip") else 1
-                    test_pbar.update(update)
+                    test_pbar.update(1)
 
         return episode_reward
 

@@ -54,7 +54,7 @@ def trainer(config: DictConfig) -> None:
                                         scale=config.preprocessing.scale_obs,
                                         patch_size=config.preprocessing.patch_size,
                                         grayscale=config.preprocessing.grayscale,
-                                        fire_reset_env=config.preprocessing.fire_reset_env)
+                                        fire_reset=config.preprocessing.fire_reset)
     # apply Atari preprocessing
     test_env = deepmind_atari_wrappers(test_env, max_episode_steps=config.max_steps_per_episode,
                                        noop_max=config.preprocessing.noop_max,
@@ -65,7 +65,7 @@ def trainer(config: DictConfig) -> None:
                                        scale=config.preprocessing.scale_obs,
                                        patch_size=config.preprocessing.patch_size,
                                        grayscale=config.preprocessing.grayscale,
-                                       fire_reset_env=config.preprocessing.fire_reset_env)
+                                       fire_reset=config.preprocessing.fire_reset)
 
     # Instantiate the recorder wrapper around gym's environment to record and
     # visualize the environment

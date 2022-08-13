@@ -269,7 +269,7 @@ class LazyFrames(object):
 def deepmind_atari_wrappers(env, max_episode_steps: int = None, noop_max: int = 30, frame_skip: int = 4,
                             episode_life: bool = True, clip_rewards: bool = True, frame_stack: int = 4,
                             scale: bool = True, patch_size: int = 84, grayscale: bool = True,
-                            fire_reset_env: bool = True):
+                            fire_reset: bool = True):
     if noop_max > 0:
         env = NoopResetEnv(env, noop_max=noop_max)
     if frame_skip > 0:
@@ -278,7 +278,7 @@ def deepmind_atari_wrappers(env, max_episode_steps: int = None, noop_max: int = 
         env = TimeLimit(env, max_episode_steps=max_episode_steps)
     if episode_life:
         env = EpisodicLifeEnv(env)
-    if 'FIRE' in env.unwrapped.get_action_meanings() and fire_reset_env:
+    if 'FIRE' in env.unwrapped.get_action_meanings() and fire_reset:
         env = FireResetEnv(env)
     if patch_size is not None:
         env = WarpFrame(env, width=patch_size, height=patch_size, grayscale=grayscale)

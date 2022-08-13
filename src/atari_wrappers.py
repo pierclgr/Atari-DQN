@@ -1,6 +1,5 @@
 from collections import deque
 
-from gym.vector.utils import spaces
 from gym.wrappers import TimeLimit
 import gym
 import numpy as np
@@ -200,8 +199,8 @@ class FrameStack(gym.Wrapper):
         self.k = k
         self.frames = deque([], maxlen=k)
         shp = env.observation_space.shape
-        self.observation_space = spaces.Box(low=0, high=255, shape=(shp[:-1] + (shp[-1] * k,)),
-                                            dtype=env.observation_space.dtype)
+        self.observation_space = gym.spaces.Box(low=0, high=255, shape=((shp[0] * k,) + shp[1:]),
+                                                dtype=env.observation_space.dtype)
 
     def reset(self):
         ob = self.env.reset()
@@ -216,7 +215,7 @@ class FrameStack(gym.Wrapper):
 
     def _get_ob(self):
         assert len(self.frames) == self.k
-        return LazyFrames(list(self.frames))
+        return LazyFrames(list(self.frames), axis=0)
 
 
 class ScaledFloatFrame(gym.ObservationWrapper):
@@ -231,7 +230,7 @@ class ScaledFloatFrame(gym.ObservationWrapper):
 
 
 class LazyFrames(object):
-    def __init__(self, frames):
+    def __init__(self, frames, axis=-1):
         """This object ensures that common frames between the observations are only stored once.
         It exists purely to optimize memory usage which can be huge for DQN's 1M frames replay
         buffers.
@@ -239,10 +238,11 @@ class LazyFrames(object):
         You'd not believe how complex the previous solution was."""
         self._frames = frames
         self._out = None
+        self._axis = axis
 
     def _force(self):
         if self._out is None:
-            self._out = np.concatenate(self._frames, axis=-1)
+            self._out = np.concatenate(self._frames, axis=self._axis)
             self._frames = None
         return self._out
 
@@ -266,10 +266,32 @@ class LazyFrames(object):
         return self._force()[..., i]
 
 
+class ImageTransposeWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        obs_shape = (self.env.observation_space.shape[2],
+                     self.env.observation_space.shape[0],
+                     self.env.observation_space.shape[1])
+        self.observation_space = gym.spaces.Box(low=0, high=255, shape=obs_shape,
+                                                dtype=self.env.observation_space.dtype)
+
+    def transpose(self, observation):
+        return np.transpose(observation, (2, 0, 1))
+
+    def reset(self):
+        ob = self.env.reset()
+        return self.transpose(ob)
+
+    def step(self, action):
+        ob, reward, done, info = self.env.step(action)
+        return self.transpose(ob), reward, done, info
+
+
 def deepmind_atari_wrappers(env, max_episode_steps: int = None, noop_max: int = 30, frame_skip: int = 4,
                             episode_life: bool = True, clip_rewards: bool = True, frame_stack: int = 4,
                             scale: bool = True, patch_size: int = 84, grayscale: bool = True,
                             fire_reset: bool = True):
+
     if noop_max > 0:
         env = NoopResetEnv(env, noop_max=noop_max)
     if frame_skip > 0:
@@ -286,6 +308,10 @@ def deepmind_atari_wrappers(env, max_episode_steps: int = None, noop_max: int = 
         env = ScaledFloatFrame(env)
     if clip_rewards:
         env = ClipRewardEnv(env)
+
+    env = ImageTransposeWrapper(env)
+
     if frame_stack > 0:
         env = FrameStack(env, frame_stack)
+
     return env

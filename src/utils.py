@@ -48,6 +48,7 @@ def set_reproducibility(training_env: gym.Env, testing_env: gym.Env, train_seed:
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
     torch.use_deterministic_algorithms(True)
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
     # set seeds for gym environments
     training_env.seed(train_seed)

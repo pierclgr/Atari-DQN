@@ -98,7 +98,7 @@ class DQNAgent(Agent):
         self.target_q_function.load_state_dict(self.q_function.state_dict())
 
         if not criterion:
-            criterion = nn.MSELoss()
+            criterion = nn.SmoothL1Loss()
 
         self.criterion = criterion
 

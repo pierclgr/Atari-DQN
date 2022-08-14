@@ -422,7 +422,7 @@ class DQNAgent(Agent):
             episode_reward = 0
 
             # while the episode is not done
-            test_pbar = tqdm(total=self.testing_env.spec.max_episode_steps)
+            test_pbar = tqdm(total=self.testing_env.spec.max_episode_steps, position=0)
             while not done:
                 # select an action to perform based on the agent policy using eps=0 to use only exploitation
                 action = self.get_action(previous_state, eps=0, train=False)

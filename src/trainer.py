@@ -81,13 +81,13 @@ def trainer(config: DictConfig) -> None:
     # initialize the agent
     agent = DQNAgent(env=train_env, testing_env=test_env, device=device, q_function=model,
                      buffer_capacity=config.buffer_capacity, checkpoint_file=config.checkpoint_file,
-                     num_episodes=config.num_episodes, batch_size=config.batch_size, discount_rate=config.gamma,
+                     num_training_steps=config.num_training_steps, batch_size=config.batch_size,
                      target_update_steps=config.c, logger=logger, eps_max=config.eps_max, eps_min=config.eps_min,
                      eps_decay_steps=config.eps_decay_steps, checkpoint_every=config.checkpoint_every,
                      home_directory=config.home_directory, learning_rate=config.optimizer.lr,
-                     num_initial_replay_samples=config.num_initial_replay_samples,
+                     num_initial_replay_samples=config.num_initial_replay_samples, discount_rate=config.gamma,
                      gradient_momentum=config.optimizer.momentum, gradient_alpha=config.optimizer.squared_momentum,
-                     gradient_eps=config.optimizer.min_squared_gradient)
+                     gradient_eps=config.optimizer.min_squared_gradient, reward_buffer_size=config.reward_buffer_size)
 
     # train the environment
     agent.train()

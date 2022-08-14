@@ -27,7 +27,7 @@ checkpoint_file: breakout_checkpoint
 video_file: breakout
 model: DQNNetwork
 output_model_file: breakout_final_model
-max_steps_per_episode: 10000
+max_steps_per_episode: 1000
 logging: true
 in_colab: true
 reproducibility:

@@ -4,7 +4,7 @@ preprocessing:
   patch_size: 84
   grayscale: true
   noop_max: 30
-  scale_obs: false
+  scale_obs: true
   episode_life: true
   clip_rewards: true
   fire_reset: false

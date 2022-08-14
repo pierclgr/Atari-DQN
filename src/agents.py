@@ -294,6 +294,7 @@ class DQNAgent(Agent):
 
             # we now compute the estimated rewards for the current states using the q_function, but before we
             # zero the gradients of the optimizer
+            self.optimizer.zero_grad()
             q_values = self.q_function(state_transitions_batch.state)
 
             # the previously computed tensor contains the estimated reward for each of the possible action;
@@ -318,7 +319,6 @@ class DQNAgent(Agent):
             # descent
             # step over the parameters of the q_function
             loss = self.criterion(target_q_values, q_values)
-            self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
             train_loss = loss.detach().item()

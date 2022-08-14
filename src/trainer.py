@@ -11,7 +11,7 @@ import sys
 import hydra
 from omegaconf import DictConfig, OmegaConf
 import torch
-from src.atari_wrappers import deepmind_atari_wrappers
+from src.wrappers import deepmind_atari_wrappers
 from gym.wrappers import TimeLimit
 
 
@@ -30,8 +30,9 @@ def trainer(config: DictConfig) -> None:
     test_env = gym.make(config.env_name, obs_type="rgb", render_mode=render_mode)
 
     # set seeds for reproducibility
-    set_reproducibility(training_env=train_env, testing_env=test_env, train_seed=config.reproducibility.train_seed,
-                        test_seed=config.reproducibility.test_seed)
+    test_env = set_reproducibility(training_env=train_env, testing_env=test_env,
+                                   train_seed=config.reproducibility.train_seed,
+                                   test_seed=config.reproducibility.test_seed)
 
     configuration = OmegaConf.to_object(config)
 
@@ -45,6 +46,8 @@ def trainer(config: DictConfig) -> None:
     print("Training configuration:")
     pprint.pprint(configuration)
 
+    episode_trigger = partial(checkpoint_episode_trigger, checkpoint_every=config.save_video_every)
+
     # apply Atari preprocessing
     train_env = deepmind_atari_wrappers(train_env, max_episode_steps=config.max_steps_per_episode,
                                         noop_max=config.preprocessing.noop_max,
@@ -56,6 +59,7 @@ def trainer(config: DictConfig) -> None:
                                         patch_size=config.preprocessing.patch_size,
                                         grayscale=config.preprocessing.grayscale,
                                         fire_reset=config.preprocessing.fire_reset)
+
     # apply Atari preprocessing
     test_env = deepmind_atari_wrappers(test_env, max_episode_steps=config.max_steps_per_episode,
                                        noop_max=config.preprocessing.noop_max,
@@ -68,11 +72,10 @@ def trainer(config: DictConfig) -> None:
                                        grayscale=config.preprocessing.grayscale,
                                        fire_reset=config.preprocessing.fire_reset)
 
-    # Instantiate the recorder wrapper around gym's environment to record and
-    # visualize the environment
-    episode_trigger = partial(checkpoint_episode_trigger, checkpoint_every=config.save_video_every)
+    # Instantiate the recorder wrapper around test environment to record and
+    # visualize the environment learning progress
     test_env = gym.wrappers.RecordVideo(test_env, video_folder=f'{config.home_directory}videos',
-                                        name_prefix=config.video_file, episode_trigger=episode_trigger)
+                                        name_prefix=f"{config.video_file}", episode_trigger=episode_trigger)
     test_env.episode_id = 1
 
     # import specified model

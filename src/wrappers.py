@@ -312,3 +312,13 @@ def deepmind_atari_wrappers(env, max_episode_steps: int = None, noop_max: int = 
         env = FrameStack(env, frame_stack)
 
     return env
+
+
+class ReproducibleEnv(gym.Wrapper):
+    def __init__(self, env, seed):
+        gym.Wrapper.__init__(self, env)
+        self.seed = seed
+
+    def reset(self):
+        ob = self.env.reset(seed=self.seed)
+        return ob

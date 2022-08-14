@@ -179,7 +179,7 @@ class DQNAgent(Agent):
     def train(self):
         # set the two networks to training mode
         self.q_function.train()
-        self.target_q_function.eval()
+        self.target_q_function.train()
 
         # load checkpoint if any
         checkpoint_info = self.checkpoint_load()
@@ -190,8 +190,7 @@ class DQNAgent(Agent):
             test_reward_buffer = deque([], maxlen=self.reward_buffer_size)
 
             # initialize replay buffer to specified capacity by following the agent policy and setting the q_function
-            # network to eval mode to avoid any training; at the same time, we use torch.no_grad to avoid gradient
-            # computation
+            # network to eval mode to avoid any training; at the same time
             self.initialize_experience()
 
             # for each episode
@@ -269,8 +268,7 @@ class DQNAgent(Agent):
 
             # as a first step, we feed the batch of next states to the target network to compute the future
             # rewards, namely the rewards for the next state
-            with torch.no_grad():
-                target_q_values = self.target_q_function(state_transitions_batch.next_state)
+            target_q_values = self.target_q_function(state_transitions_batch.next_state)
 
             # as second step, we get the maximum value for each of the predicted future rewards, so we select
             # the reward corresponding to the action with the highest return
@@ -296,7 +294,6 @@ class DQNAgent(Agent):
 
             # we now compute the estimated rewards for the current states using the q_function, but before we
             # zero the gradients of the optimizer
-            self.optimizer.zero_grad()
             q_values = self.q_function(state_transitions_batch.state)
 
             # the previously computed tensor contains the estimated reward for each of the possible action;
@@ -321,6 +318,7 @@ class DQNAgent(Agent):
             # descent
             # step over the parameters of the q_function
             loss = self.criterion(target_q_values, q_values)
+            self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
             train_loss = loss.detach().item()
@@ -328,7 +326,7 @@ class DQNAgent(Agent):
             # every C gradient descent steps, we need to reset the target_q_function weights by setting its
             # weights
             # to the weights of the q_function
-            self.update_target_network(total_steps + 1 % self.target_update_steps == 0)
+            self.update_target_network((total_steps + 1) % self.target_update_steps == 0)
 
             # compute the training average reward
             average_reward = float(np.mean(reward_buffer).item() if reward_buffer else 0)
@@ -351,7 +349,10 @@ class DQNAgent(Agent):
 
                 # test the agent at each training episode
                 test_episode_reward = self.test()
+
+                # test sets the two networks to eval mode, so reset the two networks to training mode
                 self.q_function.train()
+                self.target_q_function.train()
 
                 # add test reward to the test reward buffer
                 test_reward_buffer.append(test_episode_reward)
@@ -531,19 +532,15 @@ class DQNAgent(Agent):
         # select if to explore or exploit using eps probability
         if explore:
             # print("random")
-            # explore using random selection of actions (random policy)
+            # explore using random selection of actions
             if train:
                 action = self.env.action_space.sample()
             else:
                 action = self.testing_env.action_space.sample()
         else:
             # print("using policy")
-            # exploit the action with the highest value (greedy policy)
-            self.q_function.eval()
-            with torch.no_grad():
-                q_values = self.q_function(state)
-            if train:
-                self.q_function.train()
+            # exploit the action with the highest value
+            q_values = self.q_function(state)
             action = int(torch.argmax(q_values, dim=1)[0].detach().item())
 
         return action

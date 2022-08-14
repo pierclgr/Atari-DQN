@@ -125,7 +125,7 @@ class DQNAgent(Agent):
             # convert the initial state to torch tensor, unsqueeze it to feed it as a sample to the network and
             # cast to float tensor
             previous_state = np.asarray(previous_state)
-            previous_state = torch.as_tensor(previous_state).unsqueeze(axis=0).float()
+            previous_state = torch.as_tensor(previous_state).to(self.device).unsqueeze(axis=0).float()
 
             # fill the replay buffer with the defined number of samples
             for _ in tqdm(range(n_samples)):
@@ -137,7 +137,7 @@ class DQNAgent(Agent):
 
                 # convert the initial state to torch tensor and cast to float tensor
                 current_state = np.asarray(current_state)
-                current_state = torch.as_tensor(current_state).unsqueeze(axis=0).float()
+                current_state = torch.as_tensor(current_state).to(self.device).unsqueeze(axis=0).float()
 
                 # add the state transition to the replay buffer
                 self.store_experience(StateTransition(state=previous_state, action=action, reward=reward,
@@ -148,7 +148,7 @@ class DQNAgent(Agent):
                     # reset the environment and set the previous state to the initial state of the environment
                     previous_state = self.env.reset()
                     previous_state = np.asarray(previous_state)
-                    previous_state = torch.as_tensor(previous_state).unsqueeze(axis=0).float()
+                    previous_state = torch.as_tensor(previous_state).to(self.device).unsqueeze(axis=0).float()
                 else:
                     # otherwise, set the next previous state to the current
                     previous_state = current_state
@@ -174,9 +174,6 @@ class DQNAgent(Agent):
         self.replay_buffer.reset()
 
     def store_experience(self, state_transition: StateTransition):
-        # move stuff to cpu
-        state_transition.state.cpu()
-        state_transition.next_state.cpu()
         self.replay_buffer.store(state_transition)
 
     def train(self):
@@ -254,7 +251,7 @@ class DQNAgent(Agent):
 
             # convert the initial state to torch tensor and cast to float tensor
             current_state = np.asarray(current_state)
-            current_state = torch.as_tensor(current_state).unsqueeze(axis=0).float()
+            current_state = torch.as_tensor(current_state).to(self.device).unsqueeze(axis=0).float()
 
             # store the transition to the replay buffer memory
             self.store_experience(state_transition=StateTransition(state=previous_state, action=action,
@@ -392,7 +389,7 @@ class DQNAgent(Agent):
                 train_pbar.reset()
             else:
                 # set the next previous state to the current one
-                previous_state = current_state.to(self.device)
+                previous_state = current_state
 
                 # update the progress bar
                 train_pbar.update(1)

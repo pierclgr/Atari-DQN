@@ -46,8 +46,6 @@ def trainer(config: DictConfig) -> None:
     print("Training configuration:")
     pprint.pprint(configuration)
 
-    episode_trigger = partial(checkpoint_episode_trigger, checkpoint_every=config.save_video_every)
-
     # apply Atari preprocessing
     train_env = deepmind_atari_wrappers(train_env, max_episode_steps=config.max_steps_per_episode,
                                         noop_max=config.preprocessing.noop_max,
@@ -74,8 +72,10 @@ def trainer(config: DictConfig) -> None:
 
     # Instantiate the recorder wrapper around test environment to record and
     # visualize the environment learning progress
-    test_env = gym.wrappers.RecordVideo(test_env, video_folder=f'{config.home_directory}videos',
-                                        name_prefix=f"{config.video_file}", episode_trigger=episode_trigger)
+    episode_trigger = partial(checkpoint_episode_trigger, save_video_every=config.test_video.save_video_every)
+    test_env = gym.wrappers.RecordVideo(test_env,
+                                        video_folder=f'{config.home_directory}{config.test_video.output_folder}',
+                                        name_prefix=f"{config.test_video.file_name}", episode_trigger=episode_trigger)
     test_env.episode_id = 1
 
     # import specified model

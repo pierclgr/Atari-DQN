@@ -93,5 +93,5 @@ def get_device() -> torch.device:
     return device
 
 
-def checkpoint_episode_trigger(episode_id: int, checkpoint_every: int):
-    return episode_id % checkpoint_every == 0
+def checkpoint_episode_trigger(episode_id: int, save_video_every: int):
+    return episode_id % save_video_every == 0

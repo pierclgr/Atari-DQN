@@ -444,7 +444,6 @@ class DQNAgent(Agent):
 
                 test_pbar.update(1)
             test_pbar.close()
-
         return episode_reward
 
     def save(self, filename: str):

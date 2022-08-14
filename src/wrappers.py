@@ -1,4 +1,6 @@
+import os
 from collections import deque
+from typing import Callable
 
 from gym.wrappers import TimeLimit
 import gym

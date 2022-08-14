@@ -321,4 +321,5 @@ class ReproducibleEnv(gym.Wrapper):
 
     def reset(self):
         ob = self.env.reset(seed=self.seed)
+        self.env.action_space.seed(seed=self.seed)
         return ob

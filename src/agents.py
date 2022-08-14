@@ -16,7 +16,7 @@ from tqdm.auto import tqdm
 
 from src.models import RLNetwork, DQNNetwork
 from src.buffers import ReplayBuffer
-
+from gym.utils.play import play
 from natsort import natsorted
 
 # TODO documentation

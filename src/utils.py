@@ -57,7 +57,6 @@ def set_reproducibility(training_env: gym.Env, testing_env: gym.Env, train_seed:
 
     # set reproducibility for the testing environment
     testing_env = ReproducibleEnv(testing_env, seed=test_seed)
-    testing_env.action_space.seed(seed=test_seed)
     return testing_env
 
 

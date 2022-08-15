@@ -379,16 +379,18 @@ class DQNAgent(Agent):
                     # checkpoint the training
                     self.checkpoint_save(filename=filename, checkpoint=checkpoint_info)
 
+                # reset the progress bar
+                train_pbar.reset()
+
                 # increment the number of episodes
                 cur_episode += 1
+
+                print(f"Episode {cur_episode + 1}...")
 
                 # reset the environment and set the previous state to the initial state of the environment
                 previous_state = self.env.reset()
                 previous_state = np.asarray(previous_state)
                 previous_state = torch.as_tensor(previous_state).to(self.device).unsqueeze(axis=0).float()
-
-                # reset the progress bar
-                train_pbar.reset()
             else:
                 # set the next previous state to the current one
                 previous_state = current_state

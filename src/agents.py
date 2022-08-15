@@ -174,9 +174,9 @@ class DQNAgent(Agent):
         self.replay_buffer.reset()
 
     def store_experience(self, state_transition: StateTransition):
-        # store to RAM to preserve GPU memory
-        state_transition.state = state_transition.state.to("cpu")
-        state_transition.next_state = state_transition.next_state.to("cpu")
+        # # store to RAM to preserve GPU memory
+        # state_transition.state = state_transition.state.to("cpu")
+        # state_transition.next_state = state_transition.next_state.to("cpu")
         self.replay_buffer.store(state_transition)
 
     def train(self):

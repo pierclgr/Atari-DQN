@@ -17,6 +17,14 @@ from gym.wrappers import TimeLimit
 
 @hydra.main(version_base=None, config_path="../config/", config_name="breakout")
 def trainer(config: DictConfig) -> None:
+    configuration = OmegaConf.to_object(config)
+
+    # initialize logger
+    if config.logging:
+        logger = WandbLogger(name=f"{config.game}_DQN", config=configuration)
+    else:
+        logger = None
+
     in_colab = config.in_colab
 
     # get the device
@@ -33,14 +41,6 @@ def trainer(config: DictConfig) -> None:
     test_env = set_reproducibility(training_env=train_env, testing_env=test_env,
                                    train_seed=config.reproducibility.train_seed,
                                    test_seed=config.reproducibility.test_seed)
-
-    configuration = OmegaConf.to_object(config)
-
-    # initialize logger
-    if config.logging:
-        logger = WandbLogger(name=f"{config.game}_DQN", config=configuration)
-    else:
-        logger = None
 
     print(f"Using {device} device...")
     print("Training configuration:")

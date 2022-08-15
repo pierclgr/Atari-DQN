@@ -36,8 +36,6 @@ class WandbLogger(Logger):
         self.logger = wandb.init(project=self.project, name=self.name, entity=self.entity, config=self.config,
                                  monitor_gym=self.monitor_gym)
 
-        self.metrics = {}
-
     def finish(self):
         self.logger.finish()
 

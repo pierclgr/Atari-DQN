@@ -5,7 +5,7 @@ import random
 from collections import deque
 
 from copy import deepcopy
-from src.logger import Logger
+from src.logger import Logger, WandbLogger
 from typing import Type, Tuple, Callable, Optional
 
 import gym
@@ -215,8 +215,8 @@ class DQNAgent(Agent):
                 self.logger.log("total_episodes", cur_episode, total_steps)
                 self.logger.log("buffer_samples", len(self.replay_buffer), total_steps)
 
-            print(f"Loaded checkpoint:\n"
-                  f"\t- episode: {cur_episode + 1}\n"
+            print(f"Loaded checkpoint:")
+            print(f"\t- episode: {cur_episode + 1}\n"
                   f"\t- eps: {eps}\n"
                   f"\t- total_steps: {total_steps + 1}\n"
                   f"\t- buffer_samples: {len(self.replay_buffer)}\n"
@@ -406,6 +406,11 @@ class DQNAgent(Agent):
             total_steps += 1
 
         train_pbar.close()
+
+        # close the logger
+        if self.logger:
+            self.logger.finish()
+
         print("Done.")
 
     def update_target_network(self, update: bool):
@@ -505,21 +510,21 @@ class DQNAgent(Agent):
                 print(f"Loading checkpoint from file {os.path.basename(latest_checkpoint_file)}...")
 
                 # load information saved in the file
-                model = torch.load(latest_checkpoint_file)
+                checkpoint = torch.load(latest_checkpoint_file)
 
                 # load all checkpoint informations
-                self.q_function.load_state_dict(model['model_weights'])
-                self.optimizer.load_state_dict(model['optimizer_weights'])
-                self.replay_buffer = model['replay_buffer']
+                self.q_function.load_state_dict(checkpoint['model_weights'])
+                self.optimizer.load_state_dict(checkpoint['optimizer_weights'])
+                self.replay_buffer = checkpoint['replay_buffer']
 
                 print("Model, optimizer and replay buffer loaded from checkpoint.")
 
-                episode = model['episode']
-                eps = model['eps']
-                total_steps = model['total_steps']
-                train_loss = model['train_loss']
-                reward_buffer = model['reward_buffer']
-                test_reward_buffer = model['test_reward_buffer']
+                episode = checkpoint['episode']
+                eps = checkpoint['eps']
+                total_steps = checkpoint['total_steps']
+                train_loss = checkpoint['train_loss']
+                reward_buffer = checkpoint['reward_buffer']
+                test_reward_buffer = checkpoint['test_reward_buffer']
 
                 return episode, train_loss, reward_buffer, eps, total_steps, test_reward_buffer
             else:

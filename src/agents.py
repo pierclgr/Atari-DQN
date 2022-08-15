@@ -174,6 +174,7 @@ class DQNAgent(Agent):
         self.replay_buffer.reset()
 
     def store_experience(self, state_transition: StateTransition):
+        # store to RAM to preserve GPU memory
         state_transition.state = state_transition.state.to("cpu")
         state_transition.next_state = state_transition.next_state.to("cpu")
         self.replay_buffer.store(state_transition)
@@ -212,11 +213,13 @@ class DQNAgent(Agent):
                 self.logger.log("average_reward", average_reward, total_steps)
                 self.logger.log("test_average_reward", test_average_reward, total_steps)
                 self.logger.log("total_episodes", cur_episode, total_steps)
+                self.logger.log("buffer_samples", len(self.replay_buffer), total_steps)
 
             print(f"Loaded checkpoint:\n"
                   f"\t- episode: {cur_episode + 1}\n"
                   f"\t- eps: {eps}\n"
                   f"\t- total_steps: {total_steps + 1}\n"
+                  f"\t- buffer_samples: {len(self.replay_buffer)}\n"
                   f"\t- train_loss: {train_loss}\n"
                   f"\t- average_reward: {average_reward}\n"
                   f"\t- test_average_reward: {test_average_reward}\n")
@@ -343,6 +346,7 @@ class DQNAgent(Agent):
                 self.logger.log("average_reward", average_reward, total_steps)
                 self.logger.log("test_average_reward", test_average_reward, total_steps)
                 self.logger.log("total_episodes", cur_episode, total_steps)
+                self.logger.log("buffer_samples", len(self.replay_buffer), total_steps)
 
             # if the current state is a terminal state
             if done:
@@ -362,7 +366,7 @@ class DQNAgent(Agent):
                 print(
                     f"Episode {cur_episode + 1} - eps: {self.eps}, total_steps: {total_steps + 1}, "
                     f"train_loss: {train_loss}, average_reward: {average_reward}, "
-                    f"test_average_reward: {test_average_reward}")
+                    f"test_average_reward: {test_average_reward}, buffer_samples: {len(self.replay_buffer)}")
 
                 # checkpoint the training every defined episode
                 if (cur_episode + 1) % self.checkpoint_every == 0:

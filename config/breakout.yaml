@@ -18,7 +18,7 @@ eps_min: 0.1
 eps_decay_steps: 1000000
 gamma: 0.99  # discount factor
 c: 10000  # num steps after which to do target update
-checkpoint_every: 2000
+checkpoint_every: 2 # 2000
 home_directory: /Users/pierclgr/PycharmProjects/AAS_project/
 env_name: BreakoutNoFrameskip-v4
 game: Breakout

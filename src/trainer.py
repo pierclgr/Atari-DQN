@@ -34,8 +34,7 @@ def trainer(config: DictConfig) -> None:
     train_env = gym.make(config.env_name, obs_type="rgb")
 
     # create the testing environment
-    render_mode = "rgb_array" if in_colab else "human"
-    test_env = gym.make(config.env_name, obs_type="rgb", render_mode=render_mode)
+    test_env = gym.make(config.env_name, obs_type="rgb", render_mode="rgb_array")
 
     # set seeds for reproducibility
     test_env = set_reproducibility(training_env=train_env, testing_env=test_env,
@@ -90,7 +89,8 @@ def trainer(config: DictConfig) -> None:
                      home_directory=config.home_directory, learning_rate=config.optimizer.lr,
                      num_initial_replay_samples=config.num_initial_replay_samples, discount_rate=config.gamma,
                      gradient_momentum=config.optimizer.momentum, gradient_alpha=config.optimizer.squared_momentum,
-                     gradient_eps=config.optimizer.min_squared_gradient, reward_buffer_size=config.reward_buffer_size)
+                     gradient_eps=config.optimizer.min_squared_gradient, reward_buffer_size=config.reward_buffer_size,
+                     in_colab=in_colab)
 
     # train the environment
     agent.train()

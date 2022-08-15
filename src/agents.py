@@ -61,7 +61,8 @@ class DQNAgent(Agent):
                  reward_buffer_size: int = 100,
                  criterion: nn.Module = None,
                  optimizer: torch.optim.Optimizer = None,
-                 logger: Logger = None
+                 logger: Logger = None,
+                 in_colab: bool = True
                  ) -> None:
 
         self.env = env
@@ -85,6 +86,7 @@ class DQNAgent(Agent):
         self.gradient_alpha = gradient_alpha
         self.gradient_eps = gradient_eps
         self.reward_buffer_size = reward_buffer_size
+        self.in_colab = in_colab
 
         self.replay_buffer = ReplayBuffer(capacity=buffer_capacity)
 
@@ -479,6 +481,12 @@ class DQNAgent(Agent):
         checkpoint['model_weights'] = self.q_function.state_dict()
         checkpoint['optimizer_weights'] = self.optimizer.state_dict()
         checkpoint['replay_buffer'] = self.replay_buffer
+
+        # if in colab, remove old checkpoints to save storage
+        folder = glob.glob(f"{checkpoint_path}*")
+        if self.in_colab:
+            for file in folder:
+                os.remove(file)
 
         # save the checkpoint info
         torch.save(checkpoint, file_path)

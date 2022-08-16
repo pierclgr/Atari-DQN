@@ -451,7 +451,7 @@ class DQNAgent(Agent):
             previous_state = np.asarray(previous_state)
             previous_state = torch.as_tensor(previous_state).to(self.device).unsqueeze(axis=0).float()
             done = False
-            episode_reward = 0
+            test_episode_reward = 0
 
             # while the episode is not done
             test_pbar = tqdm(total=self.testing_env.spec.max_episode_steps, position=0)
@@ -463,7 +463,7 @@ class DQNAgent(Agent):
                 current_state, reward, done, info = self.testing_env.step(action)
 
                 # add the reward to the total reward of the current episode
-                episode_reward += reward
+                test_episode_reward += reward
 
                 # convert the initial state to torch tensor and cast to float tensor
                 current_state = np.asarray(current_state)
@@ -475,7 +475,7 @@ class DQNAgent(Agent):
 
                 test_pbar.update(1)
             test_pbar.close()
-        return episode_reward
+        return test_episode_reward
 
     def save(self, filename: str):
         trained_model_path = f"{self.home_directory}trained_models/"

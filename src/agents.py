@@ -377,8 +377,8 @@ class DQNAgent(Agent):
                     f"buffer_samples: {len(self.replay_buffer)}, train_loss: {train_loss}, "
                     f"train_average_episode_reward: {average_episode_reward}, "
                     f"test_average_episode_reward: {test_average_episode_reward}, "
-                    f"train_episode_reward: {episode_reward},"
-                    f"test_episode_reward: {test_episode_reward},")
+                    f"train_episode_reward: {episode_reward}, "
+                    f"test_episode_reward: {test_episode_reward}")
 
                 # checkpoint the training every defined episode
                 if (cur_episode + 1) % self.checkpoint_every == 0:
@@ -403,8 +403,7 @@ class DQNAgent(Agent):
                 # reset the progress bar
                 train_pbar.reset()
 
-                # reset rewards
-                test_episode_reward = 0
+                # reset episode reward
                 episode_reward = 0
 
                 print(f"Episode {cur_episode + 1}...")

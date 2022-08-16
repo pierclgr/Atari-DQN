@@ -397,11 +397,11 @@ class DQNAgent(Agent):
                     # checkpoint the training
                     self.checkpoint_save(filename=filename, checkpoint=checkpoint_info)
 
-                # reset the progress bar
-                train_pbar.reset()
-
                 # increment the number of episodes
                 cur_episode += 1
+
+                # reset the progress bar
+                train_pbar.reset()
 
                 # reset rewards
                 test_episode_reward = 0

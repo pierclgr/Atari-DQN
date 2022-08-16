@@ -12,6 +12,7 @@ buffer_capacity: 30000 # 1000000
 num_initial_replay_samples: 10000 # 50000
 num_training_steps: 50000000
 batch_size: 32
+buffered_avg_reward_size: 100
 eps_max: 1
 eps_min: 0.1
 eps_decay_steps: 1000000

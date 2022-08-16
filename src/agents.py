@@ -58,6 +58,7 @@ class DQNAgent(Agent):
                  gradient_momentum: float = 0.95,
                  gradient_alpha: float = 0.95,
                  gradient_eps: float = 0.01,
+                 buffered_avg_reward_size: int = 100,
                  criterion: nn.Module = None,
                  optimizer: torch.optim.Optimizer = None,
                  logger: Logger = None,
@@ -85,6 +86,7 @@ class DQNAgent(Agent):
         self.gradient_alpha = gradient_alpha
         self.gradient_eps = gradient_eps
         self.in_colab = in_colab
+        self.rew_buf_size = buffered_avg_reward_size
 
         self.replay_buffer = ReplayBuffer(capacity=buffer_capacity)
 
@@ -191,6 +193,8 @@ class DQNAgent(Agent):
             cur_episode = 0
             total_reward_buffer = 0
             test_total_reward_buffer = 0
+            reward_buffer = deque([], maxlen=self.rew_buf_size)
+            test_reward_buffer = deque([], maxlen=self.rew_buf_size)
 
             # initialize replay buffer to specified capacity by following the agent policy and setting the q_function
             # network to eval mode to avoid any training; at the same time
@@ -200,12 +204,16 @@ class DQNAgent(Agent):
             print(f"Training for {self.num_training_steps} steps...")
         else:
             cur_episode, train_loss, total_reward_buffer, eps, total_steps, test_total_reward_buffer, episode_reward, \
-                test_episode_reward = checkpoint_info
+            test_episode_reward, reward_buffer, test_reward_buffer = checkpoint_info
             self.eps = eps
 
             # compute the average rewards for the logging
             average_episode_reward = total_reward_buffer / (cur_episode + 1)
             test_average_episode_reward = test_total_reward_buffer / (cur_episode + 1)
+
+            # compute the buffered average rewards
+            buf_average_reward = float(np.mean(reward_buffer).item() if reward_buffer else 0)
+            buf_test_average_reward = float(np.mean(test_reward_buffer).item() if test_reward_buffer else 0)
 
             # if logging is required, we log data of the checkpoint
             if self.logger:
@@ -217,7 +225,8 @@ class DQNAgent(Agent):
                 self.logger.log("buffer_samples", len(self.replay_buffer), total_steps)
                 self.logger.log("train_episode_reward", episode_reward, total_steps)
                 self.logger.log("test_episode_reward", test_episode_reward, total_steps)
-
+                self.logger.log("buffered_train_average_episode_reward", buf_average_reward, total_steps)
+                self.logger.log("buffered_test_average_episode_reward", buf_test_average_reward, total_steps)
 
             print(f"Loaded checkpoint:")
             print(f"\t- episode: {cur_episode + 1}\n"
@@ -227,6 +236,8 @@ class DQNAgent(Agent):
                   f"\t- train_loss: {train_loss}\n"
                   f"\t- train_average_episode_reward: {average_episode_reward}\n"
                   f"\t- test_average_episode_reward: {test_average_episode_reward}\n"
+                  f"\t- buffered_train_average_episode_reward: {buf_average_reward}\n"
+                  f"\t- buffered_test_average_episode_reward: {buf_test_average_reward}\n"
                   f"\t- train_episode_reward: {episode_reward}\n"
                   f"\t- test_episode_reward: {test_episode_reward}\n")
 
@@ -342,9 +353,11 @@ class DQNAgent(Agent):
 
             # compute the training average reward
             average_episode_reward = total_reward_buffer / (cur_episode + 1)
+            buf_average_reward = float(np.mean(reward_buffer).item() if reward_buffer else 0)
 
             # compute the test average reward
             test_average_episode_reward = test_total_reward_buffer / (cur_episode + 1)
+            buf_test_average_reward = float(np.mean(test_reward_buffer).item() if test_reward_buffer else 0)
 
             # if logging is required, we update it at the end of every training step
             if self.logger:
@@ -356,11 +369,14 @@ class DQNAgent(Agent):
                 self.logger.log("buffer_samples", len(self.replay_buffer), total_steps)
                 self.logger.log("train_episode_reward", episode_reward, total_steps)
                 self.logger.log("test_episode_reward", test_episode_reward, total_steps)
+                self.logger.log("buffered_train_average_episode_reward", buf_average_reward, total_steps)
+                self.logger.log("buffered_test_average_episode_reward", buf_test_average_reward, total_steps)
 
             # if the current state is a terminal state
             if done:
                 # add the episode reward to the training reward buffer
                 total_reward_buffer += episode_reward
+                reward_buffer.append(episode_reward)
 
                 # test the agent at each training episode
                 test_episode_reward = self.test()
@@ -371,12 +387,15 @@ class DQNAgent(Agent):
 
                 # add test reward to the test reward buffer
                 test_total_reward_buffer += test_episode_reward
+                test_reward_buffer.append(test_episode_reward)
 
                 print(
                     f"Episode {cur_episode + 1} - eps: {self.eps}, total_steps: {total_steps + 1}, "
                     f"buffer_samples: {len(self.replay_buffer)}, train_loss: {train_loss}, "
                     f"train_average_episode_reward: {average_episode_reward}, "
                     f"test_average_episode_reward: {test_average_episode_reward}, "
+                    f"buffered_train_average_episode_reward: {buf_average_reward}, "
+                    f"buffered_test_average_episode_reward: {buf_test_average_reward}, "
                     f"train_episode_reward: {episode_reward}, "
                     f"test_episode_reward: {test_episode_reward}")
 
@@ -389,6 +408,8 @@ class DQNAgent(Agent):
                                        'train_loss': train_loss,
                                        'total_reward_buffer': total_reward_buffer,
                                        'test_total_reward_buffer': test_total_reward_buffer,
+                                       "reward_buffer": reward_buffer,
+                                       "test_reward_buffer": test_reward_buffer,
                                        "episode_reward": episode_reward,
                                        "test_episode_reward": test_episode_reward}
 
@@ -548,6 +569,8 @@ class DQNAgent(Agent):
                 train_loss = checkpoint['train_loss']
                 total_reward_buffer = checkpoint['total_reward_buffer']
                 test_total_reward_buffer = checkpoint['test_total_reward_buffer']
+                reward_buffer = checkpoint['reward_buffer']
+                test_reward_buffer = checkpoint['test_reward_buffer']
                 episode_reward = checkpoint["episode_reward"]
                 test_episode_reward = checkpoint["test_episode_reward"]
 
@@ -558,7 +581,9 @@ class DQNAgent(Agent):
                                 total_steps,
                                 test_total_reward_buffer,
                                 episode_reward,
-                                test_episode_reward)
+                                test_episode_reward,
+                                reward_buffer,
+                                test_reward_buffer)
 
                 return return_tuple
             else:

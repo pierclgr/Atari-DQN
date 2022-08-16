@@ -28,7 +28,9 @@ def trainer(config: DictConfig) -> None:
     in_colab = config.in_colab
 
     # get the device
-    device = get_device()
+    device, gpu_info = get_device()
+    if gpu_info:
+        print(gpu_info)
 
     # create the training environment
     train_env = gym.make(config.env_name, obs_type="rgb")
@@ -89,8 +91,7 @@ def trainer(config: DictConfig) -> None:
                      home_directory=config.home_directory, learning_rate=config.optimizer.lr,
                      num_initial_replay_samples=config.num_initial_replay_samples, discount_rate=config.gamma,
                      gradient_momentum=config.optimizer.momentum, gradient_alpha=config.optimizer.squared_momentum,
-                     gradient_eps=config.optimizer.min_squared_gradient, reward_buffer_size=config.reward_buffer_size,
-                     in_colab=in_colab)
+                     gradient_eps=config.optimizer.min_squared_gradient, in_colab=in_colab)
 
     # train the environment
     agent.train()

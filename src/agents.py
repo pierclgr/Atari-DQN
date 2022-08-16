@@ -58,7 +58,6 @@ class DQNAgent(Agent):
                  gradient_momentum: float = 0.95,
                  gradient_alpha: float = 0.95,
                  gradient_eps: float = 0.01,
-                 reward_buffer_size: int = 100,
                  criterion: nn.Module = None,
                  optimizer: torch.optim.Optimizer = None,
                  logger: Logger = None,
@@ -85,7 +84,6 @@ class DQNAgent(Agent):
         self.gradient_momentum = gradient_momentum
         self.gradient_alpha = gradient_alpha
         self.gradient_eps = gradient_eps
-        self.reward_buffer_size = reward_buffer_size
         self.in_colab = in_colab
 
         self.replay_buffer = ReplayBuffer(capacity=buffer_capacity)
@@ -191,8 +189,8 @@ class DQNAgent(Agent):
         if not checkpoint_info:
             total_steps = 0
             cur_episode = 0
-            reward_buffer = deque([], maxlen=self.reward_buffer_size)
-            test_reward_buffer = deque([], maxlen=self.reward_buffer_size)
+            total_reward_buffer = 0
+            test_total_reward_buffer = 0
 
             # initialize replay buffer to specified capacity by following the agent policy and setting the q_function
             # network to eval mode to avoid any training; at the same time
@@ -201,21 +199,25 @@ class DQNAgent(Agent):
             # for each episode
             print(f"Training for {self.num_training_steps} steps...")
         else:
-            cur_episode, train_loss, reward_buffer, eps, total_steps, test_reward_buffer = checkpoint_info
+            cur_episode, train_loss, total_reward_buffer, eps, total_steps, test_total_reward_buffer, episode_reward, \
+                test_episode_reward = checkpoint_info
             self.eps = eps
 
             # compute the average rewards for the logging
-            average_reward = float(np.mean(reward_buffer).item())
-            test_average_reward = float(np.mean(test_reward_buffer).item())
+            average_episode_reward = total_reward_buffer / (cur_episode + 1)
+            test_average_episode_reward = test_total_reward_buffer / (cur_episode + 1)
 
             # if logging is required, we log data of the checkpoint
             if self.logger:
                 self.logger.log("train_loss", train_loss, total_steps)
                 self.logger.log("eps", self.eps, total_steps)
-                self.logger.log("average_reward", average_reward, total_steps)
-                self.logger.log("test_average_reward", test_average_reward, total_steps)
+                self.logger.log("train_average_episode_reward", average_episode_reward, total_steps)
+                self.logger.log("test_average_episode_reward", test_average_episode_reward, total_steps)
                 self.logger.log("total_episodes", cur_episode, total_steps)
                 self.logger.log("buffer_samples", len(self.replay_buffer), total_steps)
+                self.logger.log("train_episode_reward", episode_reward, total_steps)
+                self.logger.log("test_episode_reward", test_episode_reward, total_steps)
+
 
             print(f"Loaded checkpoint:")
             print(f"\t- episode: {cur_episode + 1}\n"
@@ -223,8 +225,10 @@ class DQNAgent(Agent):
                   f"\t- total_steps: {total_steps + 1}\n"
                   f"\t- buffer_samples: {len(self.replay_buffer)}\n"
                   f"\t- train_loss: {train_loss}\n"
-                  f"\t- average_reward: {average_reward}\n"
-                  f"\t- test_average_reward: {test_average_reward}\n")
+                  f"\t- train_average_episode_reward: {average_episode_reward}\n"
+                  f"\t- test_average_episode_reward: {test_average_episode_reward}\n"
+                  f"\t- train_episode_reward: {episode_reward}\n"
+                  f"\t- test_episode_reward: {test_episode_reward}\n")
 
             # for each episode
             print(f"Training for {max(0, self.num_training_steps - total_steps - 1)} episodes...")
@@ -241,6 +245,7 @@ class DQNAgent(Agent):
         previous_state = np.asarray(previous_state)
         previous_state = torch.as_tensor(previous_state).to(self.device).unsqueeze(axis=0).float()
 
+        test_episode_reward = 0
         episode_reward = 0
         train_pbar = tqdm(total=self.env.spec.max_episode_steps)
         while total_steps < self.num_training_steps:
@@ -336,24 +341,26 @@ class DQNAgent(Agent):
             self.update_target_network((total_steps + 1) % self.target_update_steps == 0)
 
             # compute the training average reward
-            average_reward = float(np.mean(reward_buffer).item() if reward_buffer else 0)
+            average_episode_reward = total_reward_buffer / (cur_episode + 1)
 
             # compute the test average reward
-            test_average_reward = float(np.mean(test_reward_buffer).item() if test_reward_buffer else 0)
+            test_average_episode_reward = test_total_reward_buffer / (cur_episode + 1)
 
             # if logging is required, we update it at the end of every training step
             if self.logger:
                 self.logger.log("train_loss", train_loss, total_steps)
                 self.logger.log("eps", self.eps, total_steps)
-                self.logger.log("average_reward", average_reward, total_steps)
-                self.logger.log("test_average_reward", test_average_reward, total_steps)
+                self.logger.log("train_average_episode_reward", average_episode_reward, total_steps)
+                self.logger.log("test_average_episode_reward", test_average_episode_reward, total_steps)
                 self.logger.log("total_episodes", cur_episode, total_steps)
                 self.logger.log("buffer_samples", len(self.replay_buffer), total_steps)
+                self.logger.log("train_episode_reward", episode_reward, total_steps)
+                self.logger.log("test_episode_reward", test_episode_reward, total_steps)
 
             # if the current state is a terminal state
             if done:
                 # add the episode reward to the training reward buffer
-                reward_buffer.append(episode_reward)
+                total_reward_buffer += episode_reward
 
                 # test the agent at each training episode
                 test_episode_reward = self.test()
@@ -363,12 +370,15 @@ class DQNAgent(Agent):
                 self.target_q_function.train()
 
                 # add test reward to the test reward buffer
-                test_reward_buffer.append(test_episode_reward)
+                test_total_reward_buffer += test_episode_reward
 
                 print(
                     f"Episode {cur_episode + 1} - eps: {self.eps}, total_steps: {total_steps + 1}, "
-                    f"train_loss: {train_loss}, average_reward: {average_reward}, "
-                    f"test_average_reward: {test_average_reward}, buffer_samples: {len(self.replay_buffer)}")
+                    f"buffer_samples: {len(self.replay_buffer)}, train_loss: {train_loss}, "
+                    f"train_average_episode_reward: {average_episode_reward}, "
+                    f"test_average_episode_reward: {test_average_episode_reward}, "
+                    f"train_episode_reward: {episode_reward},"
+                    f"test_episode_reward: {test_episode_reward},")
 
                 # checkpoint the training every defined episode
                 if (cur_episode + 1) % self.checkpoint_every == 0:
@@ -377,8 +387,10 @@ class DQNAgent(Agent):
                                        'total_steps': total_steps,
                                        'eps': self.eps,
                                        'train_loss': train_loss,
-                                       'reward_buffer': reward_buffer,
-                                       'test_reward_buffer': test_reward_buffer}
+                                       'total_reward_buffer': total_reward_buffer,
+                                       'test_total_reward_buffer': test_total_reward_buffer,
+                                       "episode_reward": episode_reward,
+                                       "test_episode_reward": test_episode_reward}
 
                     filename = f"{self.checkpoint_file}_episode_{cur_episode + 1}"
 
@@ -390,6 +402,10 @@ class DQNAgent(Agent):
 
                 # increment the number of episodes
                 cur_episode += 1
+
+                # reset rewards
+                test_episode_reward = 0
+                episode_reward = 0
 
                 print(f"Episode {cur_episode + 1}...")
 
@@ -531,10 +547,21 @@ class DQNAgent(Agent):
                 eps = checkpoint['eps']
                 total_steps = checkpoint['total_steps']
                 train_loss = checkpoint['train_loss']
-                reward_buffer = checkpoint['reward_buffer']
-                test_reward_buffer = checkpoint['test_reward_buffer']
+                total_reward_buffer = checkpoint['total_reward_buffer']
+                test_total_reward_buffer = checkpoint['test_total_reward_buffer']
+                episode_reward = checkpoint["episode_reward"]
+                test_episode_reward = checkpoint["test_episode_reward"]
 
-                return episode, train_loss, reward_buffer, eps, total_steps, test_reward_buffer
+                return_tuple = (episode,
+                                train_loss,
+                                total_reward_buffer,
+                                eps,
+                                total_steps,
+                                test_total_reward_buffer,
+                                episode_reward,
+                                test_episode_reward)
+
+                return return_tuple
             else:
                 print("No checkpoint file found. Training is starting from the beginning...")
                 return None

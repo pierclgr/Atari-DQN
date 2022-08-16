@@ -1,5 +1,5 @@
 import random
-from typing import Any
+from typing import Any, Tuple, Optional
 
 import gym
 import numpy as np
@@ -52,7 +52,7 @@ def set_reproducibility(training_env: gym.Env, testing_env: gym.Env, train_seed:
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
     # set seeds for gym environments
-    training_env.seed(train_seed)
+    training_env.reset(seed=train_seed)
     training_env.action_space.seed(train_seed)
 
     # set reproducibility for the testing environment
@@ -60,12 +60,14 @@ def set_reproducibility(training_env: gym.Env, testing_env: gym.Env, train_seed:
     return testing_env
 
 
-def get_device() -> torch.device:
+def get_device() -> Tuple[torch.device, Optional[None]]:
     """
     Get the current machine device to use
 
     :return: device to use for training (str)
     """
+    gpu_info = None
+
     # import torch_xla library if runtime is using a Colab TPU
     if 'COLAB_TPU_ADDR' in os.environ:
         import torch_xla.core.xla_model as xm
@@ -87,10 +89,9 @@ def get_device() -> torch.device:
         if torch.cuda.is_available():
             # print the details of the given GPU
             stream = os.popen('nvidia-smi')
-            output = stream.read()
-            print(output)
+            gpu_info = stream.read()
 
-    return device
+    return device, gpu_info
 
 
 def checkpoint_episode_trigger(episode_id: int, save_video_every: int):

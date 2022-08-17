@@ -10,7 +10,7 @@ preprocessing:
   fire_reset: false
 buffer_capacity: 100000 # 1000000
 num_initial_replay_samples: 1000 # 50000
-num_training_steps: 50000000
+num_training_steps: 5000000 # 50000000
 batch_size: 32
 buffered_avg_reward_size: 100
 num_parallel_envs: 4

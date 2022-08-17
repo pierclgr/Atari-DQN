@@ -1,71 +1,81 @@
 import importlib
+import math
 import os
+from functools import partial
 
 import hydra
-from omegaconf import DictConfig
-import sys
-from colabgymrender.recorder import Recorder
-from pyvirtualdisplay import Display
+from omegaconf import DictConfig, OmegaConf
 
 import gym
 
 from src.agents import DQNAgent
-from src.utils import get_device, set_seeds
+from src.logger import WandbLogger
+from src.utils import get_device, manual_record_trigger
+from src.wrappers import deepmind_atari_wrappers
 
 
-@hydra.main(version_base=None, config_path="../config/", config_name="breakout")
+@hydra.main(version_base=None, config_path="../config/", config_name="test_breakout")
 def tester(config: DictConfig):
-    # check if we're running in colab
+    configuration = OmegaConf.to_object(config)
+
+    # initialize logger
+    if config.logging:
+        logger = WandbLogger(name=f"{config.wandb_run_name}", config=configuration)
+    else:
+        logger = None
+
     in_colab = config.in_colab
 
     # get the device
-    device = get_device()
+    device, gpu_info = get_device()
+    if gpu_info:
+        print(gpu_info)
 
-    # create the environment
-    if in_colab:
-        env = gym.make(config.env_name, obs_type="rgb")
-    else:
-        env = gym.make(config.env_name, render_mode="human", obs_type="rgb")
+    render_mode = "rgb_array" if in_colab else "human"
 
-    # set seeds for reproducibility
-    set_seeds()
+    # create the testing environment
+    test_env = gym.make(config.env_name, obs_type="rgb", render_mode=render_mode)
 
     # apply Atari preprocessing
-    env = gym.wrappers.AtariPreprocessing(env,
-                                          noop_max=config.preprocessing.n_frames_per_state,
-                                          frame_skip=config.preprocessing.n_frames_to_skip,
-                                          screen_size=config.preprocessing.patch_size,
-                                          grayscale_obs=config.preprocessing.grayscale)
-    env = gym.wrappers.FrameStack(env, num_stack=config.preprocessing.n_frames_per_state)
+    test_env = deepmind_atari_wrappers(test_env, max_episode_steps=config.max_steps_per_episode,
+                                       noop_max=config.preprocessing.noop_max,
+                                       frame_skip=config.preprocessing.n_frames_to_skip,
+                                       episode_life=config.preprocessing.episode_life,
+                                       clip_rewards=config.preprocessing.clip_rewards,
+                                       frame_stack=config.preprocessing.n_frames_per_state,
+                                       scale=config.preprocessing.scale_obs,
+                                       patch_size=config.preprocessing.patch_size,
+                                       grayscale=config.preprocessing.grayscale,
+                                       fire_reset=config.preprocessing.fire_reset)
+
+    # Instantiate the recorder wrapper around test environment to record and
+    # visualize the environment learning progress
+    if in_colab:
+        test_env = gym.wrappers.RecordVideo(test_env,
+                                            video_folder=f'{config.home_directory}{config.test_video.output_folder}',
+                                            name_prefix=f"{config.test_video.file_name}",
+                                            video_length=math.inf)
 
     # import specified model
     model = getattr(importlib.import_module("src.models"), config.model)
 
-    # if running in colab
-    if in_colab:
-        # Set up display for visualization
-        Display(visible=False, size=(400, 300)).start()
-
-        # Instantiate the recorder wrapper around gym's environment to record and
-        # visualize the environment
-        env = Recorder(env, directory=f'{config.home_directory}video')
-
     # initialize the agent
-    agent = DQNAgent(env=env, testing_env=env, device=device, q_function=model, buffer_capacity=config.buffer_capacity,
-                     num_episodes=config.num_episodes, batch_size=config.batch_size, discount_rate=config.gamma,
-                     target_update_steps=config.c, logger=None, eps_max=config.eps_max, eps_min=config.eps_min,
-                     eps_decay_steps=config.eps_decay_steps, checkpoint_every=config.checkpoint_every,
-                     home_directory=config.home_directory, seed=config.train_seed, testing_seed=config.test_seed,
-                     checkpoint_file=config.checkpoint_file, learning_rate=config.lr)
+    agent = DQNAgent(env=test_env, testing_env=test_env, device=device, q_function=model, logger=logger,
+                     home_directory=config.home_directory, in_colab=in_colab,
+                     buffered_avg_reward_size=config.buffered_avg_reward_size, checkpoint_file="")
 
-    # load the trained model
-    agent.load(config.output_model_file)
+    # load the defined trained model
+    agent.load(filename=config.output_model_file)
 
-    # test the agent
-    agent.test()
+    # play
+    agent.play()
 
     # close the environment
-    env.close()
+    test_env.close()
+
+    # close the logger
+    if config.logging:
+        logger.finish()
 
 
 if __name__ == "__main__":

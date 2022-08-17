@@ -15,13 +15,13 @@ from src.wrappers import deepmind_atari_wrappers
 from gym.wrappers import TimeLimit
 
 
-@hydra.main(version_base=None, config_path="../config/", config_name="breakout")
+@hydra.main(version_base=None, config_path="../config/", config_name="train_breakout")
 def trainer(config: DictConfig) -> None:
     configuration = OmegaConf.to_object(config)
 
     # initialize logger
     if config.logging:
-        logger = WandbLogger(name=f"{config.game}_DQN", config=configuration)
+        logger = WandbLogger(name=f"{config.wandb_run_name}", config=configuration)
     else:
         logger = None
 

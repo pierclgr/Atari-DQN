@@ -96,3 +96,7 @@ def get_device() -> Tuple[torch.device, Optional[None]]:
 
 def checkpoint_episode_trigger(episode_id: int, save_video_every: int):
     return episode_id % save_video_every == 0
+
+
+def manual_record_trigger(step_id: int):
+    return step_id < 0

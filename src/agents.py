@@ -16,8 +16,9 @@ from tqdm.auto import tqdm
 
 from src.models import RLNetwork, DQNNetwork
 from src.buffers import ReplayBuffer
-from gym.utils.play import play
 from natsort import natsorted
+
+import signal
 
 # TODO documentation
 
@@ -445,10 +446,6 @@ class DQNAgent(Agent):
 
         train_pbar.close()
 
-        # close the logger
-        if self.logger:
-            self.logger.finish()
-
         print("Done.")
 
     def update_target_network(self, update: bool):
@@ -506,7 +503,8 @@ class DQNAgent(Agent):
         print(f"Saving trained model to {filename}.pt...")
 
         # save network weights
-        torch.save(self.q_function.state_dict(), file_path)
+        checkpoint = {"model_weights": self.q_function.state_dict()}
+        torch.save(checkpoint, file_path)
 
     def checkpoint_save(self, filename: str, checkpoint: dict):
         checkpoint_path = f"{self.home_directory}trained_models/checkpoints/"
@@ -534,8 +532,8 @@ class DQNAgent(Agent):
             file_path = f"{trained_model_path}{filename}"
             if os.path.isfile(file_path):
                 print(f"Loading model from {filename}...")
-                model = torch.load(file_path)
-                self.q_function.load_state_dict(model)
+                checkpoint = torch.load(file_path)
+                self.q_function.load_state_dict(checkpoint['model_weights'])
             else:
                 print("The specified file does not exist in the trained models directory.")
         else:
@@ -592,6 +590,94 @@ class DQNAgent(Agent):
         else:
             print("No checkpoint file found. Training is starting from the beginning...")
             return None
+
+    def play(self):
+        print("Playing...")
+        # set the two networks to eval mode
+        self.q_function.eval()
+        self.target_q_function.eval()
+
+        # while the episode is not done
+        with torch.no_grad():
+            test_pbar = tqdm()
+
+            # reset the environment and get the initial state to start a new episode
+            previous_state = self.testing_env.reset()
+            # convert the initial state to torch tensor, unsqueeze it to feed it as a sample to the network and cast
+            # to float tensor
+            previous_state = np.asarray(previous_state)
+            previous_state = torch.as_tensor(previous_state).to(self.device).unsqueeze(axis=0).float()
+            exit = False
+            test_episode_reward = 0
+            test_total_reward_buffer = 0
+            test_reward_buffer = deque([], maxlen=self.rew_buf_size)
+            cur_episode = 0
+            total_steps = 0
+            print(f"Episode {cur_episode + 1}...")
+            while not exit:
+                try:
+                    # select an action to perform based on the agent policy using eps=0 to use only exploitation
+                    action = self.get_action(previous_state, eps=0, train=False)
+
+                    # perform the selected action and get the new state
+                    current_state, reward, done, info = self.testing_env.step(action)
+
+                    # add the reward to the total reward of the current episode
+                    test_episode_reward += reward
+
+                    # convert the initial state to torch tensor and cast to float tensor
+                    current_state = np.asarray(current_state)
+                    current_state = torch.as_tensor(current_state).to(self.device).unsqueeze(axis=0).float()
+
+                    # compute the test average reward
+                    test_average_episode_reward = test_total_reward_buffer / (cur_episode + 1)
+                    buf_test_average_reward = float(np.mean(test_reward_buffer).item() if test_reward_buffer else 0)
+
+                    # if logging is required, we update it at the end of every training step
+                    if self.logger:
+                        self.logger.log("test_average_episode_reward", test_average_episode_reward, total_steps)
+                        self.logger.log("total_episodes", cur_episode, total_steps)
+                        self.logger.log("test_episode_reward", test_episode_reward, total_steps)
+                        self.logger.log("buffered_test_average_episode_reward", buf_test_average_reward, total_steps)
+
+                    if done:
+                        test_reward_buffer.append(test_episode_reward)
+                        test_total_reward_buffer += test_episode_reward
+
+                        print(f"Episode {cur_episode + 1} - "
+                              f"total_steps: {total_steps},"
+                              f"test_average_episode_reward: {test_average_episode_reward}, "
+                              f"buffered_test_average_episode_reward: {buf_test_average_reward}, "
+                              f"test_episode_reward: {test_episode_reward}")
+
+                        # increment the number of episodes
+                        cur_episode += 1
+
+                        # reset the progress bar
+                        test_pbar.reset()
+
+                        # reset episode reward
+                        test_episode_reward = 0
+
+                        print(f"Episode {cur_episode + 1}...")
+
+                        # reset the environment and set the previous state to the initial state of the environment
+                        previous_state = self.env.reset()
+                        previous_state = np.asarray(previous_state)
+                        previous_state = torch.as_tensor(previous_state).to(self.device).unsqueeze(axis=0).float()
+                    else:
+                        previous_state = current_state
+
+                        test_pbar.update(1)
+
+                    # increment the number of total steps
+                    total_steps += 1
+
+                except (KeyboardInterrupt, SystemExit):
+                    print("Playing interrupted, exiting...")
+                    exit = True
+
+            test_pbar.close()
 
     def get_action(self, state, eps=None, train: bool = True) -> int:
         if eps is None:

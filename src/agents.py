@@ -39,7 +39,7 @@ class Agent(ABC):
 # create agent playing by following a learned DQN policy
 class DQNAgent(Agent):
     def __init__(self,
-                 env: gym.Env,
+                 env: gym.vector.AsyncVectorEnv,
                  testing_env: gym.Env,
                  device: torch.device,
                  home_directory: str,
@@ -63,7 +63,7 @@ class DQNAgent(Agent):
                  criterion: nn.Module = None,
                  optimizer: torch.optim.Optimizer = None,
                  logger: Logger = None,
-                 in_colab: bool = True
+                 save_space: bool = True
                  ) -> None:
 
         self.env = env
@@ -86,7 +86,7 @@ class DQNAgent(Agent):
         self.gradient_momentum = gradient_momentum
         self.gradient_alpha = gradient_alpha
         self.gradient_eps = gradient_eps
-        self.in_colab = in_colab
+        self.save_space = save_space
         self.rew_buf_size = buffered_avg_reward_size
 
         self.replay_buffer = ReplayBuffer(capacity=buffer_capacity)
@@ -124,9 +124,6 @@ class DQNAgent(Agent):
 
             # reset the environment and get the initial state to start a new episode
             previous_state = self.env.reset()
-
-            # convert the initial state to torch tensor, unsqueeze it to feed it as a sample to the network and
-            # cast to float tensor
             previous_state = np.asarray(previous_state)
             previous_state = torch.as_tensor(previous_state).to(self.device).unsqueeze(axis=0).float()
 
@@ -518,7 +515,7 @@ class DQNAgent(Agent):
 
         # if in colab, remove old checkpoints to save storage
         folder = glob.glob(f"{checkpoint_path}*")
-        if self.in_colab:
+        if self.save_space:
             for file in folder:
                 os.remove(file)
 

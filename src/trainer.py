@@ -13,6 +13,7 @@ from omegaconf import DictConfig, OmegaConf
 import torch
 from src.wrappers import deepmind_atari_wrappers
 from gym.wrappers import TimeLimit
+from gym.vector import VectorEnv
 
 
 @hydra.main(version_base=None, config_path="../config/", config_name="train_breakout")
@@ -25,7 +26,7 @@ def trainer(config: DictConfig) -> None:
     else:
         logger = None
 
-    in_colab = config.in_colab
+    save_space = config.save_space
 
     # get the device
     device, gpu_info = get_device()
@@ -91,7 +92,7 @@ def trainer(config: DictConfig) -> None:
                      home_directory=config.home_directory, learning_rate=config.optimizer.lr,
                      num_initial_replay_samples=config.num_initial_replay_samples, discount_rate=config.gamma,
                      gradient_momentum=config.optimizer.momentum, gradient_alpha=config.optimizer.squared_momentum,
-                     gradient_eps=config.optimizer.min_squared_gradient, in_colab=in_colab,
+                     gradient_eps=config.optimizer.min_squared_gradient, save_space=save_space,
                      buffered_avg_reward_size=config.buffered_avg_reward_size)
 
     # train the environment

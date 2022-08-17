@@ -52,8 +52,8 @@ def set_reproducibility(training_env: gym.Env, testing_env: gym.Env, train_seed:
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
     # set seeds for gym environments
-    training_env.reset(seed=train_seed)
     training_env.action_space.seed(train_seed)
+    training_env.reset(seed=train_seed)
 
     # set reproducibility for the testing environment
     testing_env = ReproducibleEnv(testing_env, seed=test_seed)

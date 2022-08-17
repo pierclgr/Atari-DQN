@@ -9,10 +9,11 @@ preprocessing:
   clip_rewards: true
   fire_reset: false
 buffer_capacity: 100000 # 1000000
-num_initial_replay_samples: 50000
+num_initial_replay_samples: 1000 # 50000
 num_training_steps: 50000000
 batch_size: 32
 buffered_avg_reward_size: 100
+num_parallel_envs: 4
 eps_max: 1
 eps_min: 0.1
 eps_decay_steps: 1000000
@@ -26,8 +27,8 @@ checkpoint_file: breakout_checkpoint
 model: DQNNetwork
 output_model_file: breakout_final_model
 max_steps_per_episode: 1000
-logging: true
-in_colab: true
+logging: false # true
+save_space: true
 test_video:
   file_name: train_breakout
   save_video_every: 2000

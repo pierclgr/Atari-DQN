@@ -12,9 +12,6 @@ playbox.py
 # wandb
 wandb/
 
-# trained models
-trained_models/
-
 # hydra stuff
 outputs/
 

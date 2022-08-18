@@ -12,6 +12,7 @@ buffered_avg_reward_size: 100
 home_directory: /Users/pierclgr/PycharmProjects/AAS_project/
 env_name: BreakoutNoFrameskip-v4
 wandb_run_name: Test_Breakout_DQN
+agent: DQNAgent
 model: DQNNetwork
 output_model_file: breakout_final_model
 max_steps_per_episode: null

@@ -14,7 +14,7 @@ from src.utils import get_device, manual_record_trigger
 from src.wrappers import deepmind_atari_wrappers
 
 
-@hydra.main(version_base=None, config_path="../config/", config_name="test_breakout")
+@hydra.main(version_base=None, config_path="../config/", config_name="test")
 def tester(config: DictConfig):
     configuration = OmegaConf.to_object(config)
 
@@ -59,10 +59,13 @@ def tester(config: DictConfig):
     # import specified model
     model = getattr(importlib.import_module("src.models"), config.model)
 
+    # import specified agent
+    agent = getattr(importlib.import_module("src.agents"), config.agent)
+
     # initialize the agent
-    agent = DQNAgent(env=test_env, testing_env=test_env, device=device, q_function=model, logger=logger,
-                     home_directory=config.home_directory, in_colab=in_colab,
-                     buffered_avg_reward_size=config.buffered_avg_reward_size, checkpoint_file="")
+    agent = agent(env=test_env, testing_env=test_env, device=device, q_function=model, logger=logger,
+                  home_directory=config.home_directory, buffered_avg_reward_size=config.buffered_avg_reward_size,
+                  checkpoint_file="")
 
     # load the defined trained model
     agent.load(filename=config.output_model_file)

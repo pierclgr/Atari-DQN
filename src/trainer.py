@@ -16,7 +16,7 @@ from gym.wrappers import TimeLimit
 from gym.vector import VectorEnv
 
 
-@hydra.main(version_base=None, config_path="../config/", config_name="train_breakout")
+@hydra.main(version_base=None, config_path="../config/", config_name="train")
 def trainer(config: DictConfig) -> None:
     configuration = OmegaConf.to_object(config)
 
@@ -83,17 +83,20 @@ def trainer(config: DictConfig) -> None:
     # import specified model
     model = getattr(importlib.import_module("src.models"), config.model)
 
+    # import specified agent
+    agent = getattr(importlib.import_module("src.agents"), config.agent)
+
     # initialize the agent
-    agent = DQNAgent(env=train_env, testing_env=test_env, device=device, q_function=model,
-                     buffer_capacity=config.buffer_capacity, checkpoint_file=config.checkpoint_file,
-                     num_training_steps=config.num_training_steps, batch_size=config.batch_size,
-                     target_update_steps=config.c, logger=logger, eps_max=config.eps_max, eps_min=config.eps_min,
-                     eps_decay_steps=config.eps_decay_steps, checkpoint_every=config.checkpoint_every,
-                     home_directory=config.home_directory, learning_rate=config.optimizer.lr,
-                     num_initial_replay_samples=config.num_initial_replay_samples, discount_rate=config.gamma,
-                     gradient_momentum=config.optimizer.momentum, gradient_alpha=config.optimizer.squared_momentum,
-                     gradient_eps=config.optimizer.min_squared_gradient, save_space=save_space,
-                     buffered_avg_reward_size=config.buffered_avg_reward_size)
+    agent = agent(env=train_env, testing_env=test_env, device=device, q_function=model,
+                  buffer_capacity=config.buffer_capacity, checkpoint_file=config.checkpoint_file,
+                  num_training_steps=config.num_training_steps, batch_size=config.batch_size,
+                  target_update_steps=config.c, logger=logger, eps_max=config.eps_max, eps_min=config.eps_min,
+                  eps_decay_steps=config.eps_decay_steps, checkpoint_every=config.checkpoint_every,
+                  home_directory=config.home_directory, learning_rate=config.optimizer.lr,
+                  num_initial_replay_samples=config.num_initial_replay_samples, discount_rate=config.gamma,
+                  gradient_momentum=config.optimizer.momentum, gradient_alpha=config.optimizer.squared_momentum,
+                  gradient_eps=config.optimizer.min_squared_gradient, save_space=save_space,
+                  buffered_avg_reward_size=config.buffered_avg_reward_size)
 
     # train the environment
     agent.train()

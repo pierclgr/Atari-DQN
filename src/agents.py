@@ -28,7 +28,8 @@ from src.utils import StateTransition
 
 class Agent(ABC):
     @abstractmethod
-    def __init__(self, *args) -> None:
+    def __init__(self, env: gym.Env,) -> None:
+        self.env = env
         pass
 
     @abstractmethod
@@ -36,25 +37,23 @@ class Agent(ABC):
         pass
 
 
-# create agent playing by following a learned DQN policy
-class DQNAgent(Agent):
+# create a trainable agent with experience replay
+class TrainableExperienceReplayAgent(Agent):
     def __init__(self,
-                 env: gym.vector.AsyncVectorEnv,
                  testing_env: gym.Env,
                  device: torch.device,
                  home_directory: str,
                  checkpoint_file: str,
                  q_function: Type[RLNetwork] = DQNNetwork,
-                 buffer_capacity: int = 1000000,
                  num_training_steps: int = 50000000,
                  batch_size: int = 32,
                  eps_max: float = 1,
                  eps_min: float = 0.1,
                  eps_decay_steps: int = 1000000,
-                 discount_rate: float = 0.99,
                  target_update_steps: int = 10000,
                  learning_rate: float = 0.00025,
-                 checkpoint_every: int = 100,
+                 checkpoint_every: int = 2000,
+                 buffer_capacity: int = 100000,
                  num_initial_replay_samples: int = 50000,
                  gradient_momentum: float = 0.95,
                  gradient_alpha: float = 0.95,
@@ -63,10 +62,12 @@ class DQNAgent(Agent):
                  criterion: nn.Module = None,
                  optimizer: torch.optim.Optimizer = None,
                  logger: Logger = None,
-                 save_space: bool = True
+                 save_space: bool = True,
+                 **kwargs
                  ) -> None:
 
-        self.env = env
+        super(TrainableExperienceReplayAgent, self).__init__(**kwargs)
+
         self.testing_env = testing_env
         self.num_training_steps = num_training_steps
         self.batch_size = batch_size
@@ -75,7 +76,6 @@ class DQNAgent(Agent):
         self.eps_max = eps_max
         self.eps_min = eps_min
         self.eps_decay_steps = eps_decay_steps
-        self.discount_rate = discount_rate
         self.target_update_steps = target_update_steps
         self.learning_rate = learning_rate
         self.logger = logger
@@ -91,13 +91,13 @@ class DQNAgent(Agent):
 
         self.replay_buffer = ReplayBuffer(capacity=buffer_capacity)
 
-        self.input_shape = env.observation_space.shape
+        self.input_shape = self.env.observation_space.shape
 
         self.q_function = q_function(input_shape=self.input_shape,
-                                     output_channels=env.action_space.n).to(device=self.device)
+                                     output_channels=self.env.action_space.n).to(device=self.device)
 
         self.target_q_function = q_function(input_shape=self.input_shape,
-                                            output_channels=env.action_space.n).to(device=self.device)
+                                            output_channels=self.env.action_space.n).to(device=self.device)
         self.target_q_function.load_state_dict(self.q_function.state_dict())
 
         if not criterion:
@@ -282,67 +282,8 @@ class DQNAgent(Agent):
             # sample a random minibatch of transitions
             state_transitions_batch = self.sample_experience(num_samples=self.batch_size)
 
-            # compute the labels for the loss computation: if a state is the final state, namely done is true,
-            # the label is the reward at that time, otherwise the label is computed as the sum between the
-            # reward and the discounted reward at the next state, which in this case is computed by the
-            # target_q_function
-
-            # as a first step, we feed the batch of next states to the target network to compute the future
-            # rewards, namely the rewards for the next state
-            target_q_values = self.target_q_function(state_transitions_batch.next_state)
-
-            # as second step, we get the maximum value for each of the predicted future rewards, so we select
-            # the reward corresponding to the action with the highest return
-            target_q_values, _ = torch.max(target_q_values, dim=1)
-
-            # then, we apply a discount rate to the future rewards
-            target_q_values = self.discount_rate * target_q_values
-
-            # now, we need to zero the future rewards that correspond to states that are final states; in fact,
-            # as said before, future rewards are used in the computations just for current states which are not
-            # final states; for final states, the actual reward is just the reward of the current state
-            # we can do this by mulitplying a boolean tensor with the tensor of future rewards: this will
-            # produce a tensor where the discounted future rewards are zeroed where the boolean tensor is False
-            # we need to zero the discounted future rewards for the final states, so the states that are True in
-            # the done batch, so we simply mulitply the discounted future rewards tensor by the opposite of the
-            # done batch
-            target_q_values = target_q_values * torch.logical_not(state_transitions_batch.done)
-
-            # finally, we sum the resulting tensor with the reward batch, resulting thus in a tensor with only
-            # the reward for final states and the discounted future reward plus the actual reward for non-final
-            # states
-            target_q_values = state_transitions_batch.reward + target_q_values
-
-            # we now compute the estimated rewards for the current states using the q_function, but before we
-            # zero the gradients of the optimizer
-            self.optimizer.zero_grad()
-            q_values = self.q_function(state_transitions_batch.state)
-
-            # the previously computed tensor contains the estimated reward for each of the possible action;
-            # since we need to compute the loss between these estimated rewards and the target rewards computed
-            # before, this latter tensor only contains the future reward with no information about the action,
-            # so what we do is computing a one-hot tensor which zeroes the estimated rewards for actions that
-            # are not the actual taken actions
-            one_hot_actions = torch.nn.functional.one_hot(state_transitions_batch.action,
-                                                          self.env.action_space.n)
-
-            # by multiplying the estimated reward tensor and the one hot action tensor, we will get a tensor of
-            # the same shape that contains 0 as a reward for actions that are not the current action while
-            # contains the estimated reward for the action that is the current action
-            q_values *= one_hot_actions
-
-            # we then sum the estimated along the actions dimension to get the final a tensor with only one
-            # reward per sample that will be the only reward that was not zeroed out in the previous step
-            # (because we will sum zeros with only one reward value)
-            q_values = torch.sum(q_values, dim=1)
-
-            # now we compute the loss between predicted rewards and target rewards and perform a gradient
-            # descent
-            # step over the parameters of the q_function
-            loss = self.criterion(target_q_values, q_values)
-            loss.backward()
-            self.optimizer.step()
-            train_loss = loss.detach().item()
+            # do a training step
+            train_loss = self.training_step(state_transitions_batch=state_transitions_batch)
 
             # every C gradient descent steps, we need to reset the target_q_function weights by setting its
             # weights
@@ -676,6 +617,10 @@ class DQNAgent(Agent):
 
             test_pbar.close()
 
+    @abstractmethod
+    def compute_labels_and_predictions(self, state_transitions_batch: StateTransition):
+        pass
+
     def get_action(self, state, eps=None, train: bool = True) -> int:
         if eps is None:
             eps = self.eps
@@ -702,3 +647,131 @@ class DQNAgent(Agent):
     def eps_decay(self, steps: int):
         new_eps = (steps * ((self.eps_min - self.eps_max) / self.eps_decay_steps)) + self.eps_max
         self.eps = max(new_eps, self.eps_min)
+
+    def compute_loss(self, target_q_values, q_values):
+        loss = self.criterion(target_q_values, q_values)
+        return loss
+
+    def gradient_descent_step(self, loss, optimizer):
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+    def training_step(self, state_transitions_batch):
+        # compute target q values and q values for loss computation accordingly to the agent algorithm
+        target_q_values, q_values = self.compute_labels_and_predictions(state_transitions_batch)
+
+        # now we compute the loss between predicted rewards and target rewards
+        loss = self.compute_loss(target_q_values, q_values)
+
+        # now we perform a gradient descent step over the parameters of the q_function
+        self.gradient_descent_step(loss, self.optimizer)
+
+        return loss.detach().item()
+
+
+class DQNAgent(TrainableExperienceReplayAgent):
+    def __init__(self, discount_rate: float = 0.99, **kwargs):
+        super().__init__(**kwargs)
+
+        self.discount_rate = discount_rate
+
+    def compute_labels_and_predictions(self, state_transitions_batch: StateTransition):
+        # compute the target q values accordingly to the agent's algorithm
+        target_q_values = self.compute_target_q_values(state_transitions_batch)
+
+        # then, we apply a discount rate to the future rewards
+        target_q_values = self.discount_rate * target_q_values
+
+        # now, we need to zero the future rewards that correspond to states that are final states; in fact,
+        # as said before, future rewards are used in the computations just for current states which are not
+        # final states; for final states, the actual reward is just the reward of the current state
+        # we can do this by mulitplying a boolean tensor with the tensor of future rewards: this will
+        # produce a tensor where the discounted future rewards are zeroed where the boolean tensor is False
+        # we need to zero the discounted future rewards for the final states, so the states that are True in
+        # the done batch, so we simply mulitply the discounted future rewards tensor by the opposite of the
+        # done batch
+        target_q_values = target_q_values * torch.logical_not(state_transitions_batch.done)
+
+        # finally, we sum the resulting tensor with the reward batch, resulting thus in a tensor with only
+        # the reward for final states and the discounted future reward plus the actual reward for non-final
+        # states
+        target_q_values = state_transitions_batch.reward + target_q_values
+
+        # we now compute the estimated rewards for the current states using the q_function, but before we
+        # zero the gradients of the optimizer
+        q_values = self.q_function(state_transitions_batch.state)
+
+        # the previously computed tensor contains the estimated reward for each of the possible action;
+        # since we need to compute the loss between these estimated rewards and the target rewards computed
+        # before, this latter tensor only contains the future reward with no information about the action,
+        # so what we do is computing a one-hot tensor which zeroes the estimated rewards for actions that
+        # are not the actual taken actions
+        one_hot_actions = torch.nn.functional.one_hot(state_transitions_batch.action,
+                                                      self.env.action_space.n)
+
+        # by multiplying the estimated reward tensor and the one hot action tensor, we will get a tensor of
+        # the same shape that contains 0 as a reward for actions that are not the current action while
+        # contains the estimated reward for the action that is the current action
+        q_values *= one_hot_actions
+
+        # we then sum the estimated along the actions dimension to get the final a tensor with only one
+        # reward per sample that will be the only reward that was not zeroed out in the previous step
+        # (because we will sum zeros with only one reward value)
+        q_values = torch.sum(q_values, dim=1)
+
+        return target_q_values, q_values
+
+    def compute_target_q_values(self, state_transitions_batch: StateTransition):
+        # compute the labels for the loss computation: if a state is the final state, namely done is true,
+        # the label is the reward at that time, otherwise the label is computed as the sum between the
+        # reward and the discounted reward at the next state, which in this case is computed by the
+        # target_q_function
+
+        # as a first step, we feed the batch of next states to the target network to compute the future
+        # rewards, namely the rewards for the next state
+        target_q_values = self.target_q_function(state_transitions_batch.next_state)
+
+        # as second step, we get the maximum value for each of the predicted future rewards, so we select
+        # the reward corresponding to the action with the highest return
+        target_q_values, _ = torch.max(target_q_values, dim=1)
+
+        return target_q_values
+
+
+class DoubleDQNAgent(DQNAgent):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def compute_target_q_values(self, state_transitions_batch: StateTransition):
+        # compute the labels for the loss computation: if a state is the final state, namely done is true,
+        # the label is the reward at that time, otherwise the label is computed as the sum between the
+        # reward and the discounted reward at the next state, which in this case is computed by the
+        # target_q_function
+
+        # as a first step, we feed the batch of next states to the q function (q network) to compute the action value
+        # estimates
+        q_values = self.q_function(state_transitions_batch.next_state)
+
+        # once we did this, we get the actions having the maximum estimated q value
+        actions_with_max_value = torch.argmax(q_values, dim=1)
+
+        # now, we feed the batch of next states to the target q function (target q network) to compute the target action
+        # value estimates
+        target_q_values = self.target_q_function(state_transitions_batch.next_state)
+
+        # now we compute a one-hot tensor that we will use to zero out the target q values of actions that are not the
+        # actions with the maximum estimated values
+        one_hot_actions = torch.nn.functional.one_hot(actions_with_max_value, self.env.action_space.n)
+
+        # by multiplying the estimated reward tensor and the one hot action tensor, we will get a tensor of
+        # the same shape that contains 0 as a reward for actions that are not the current action while
+        # contains the estimated reward for the action that is the current action
+        target_q_values *= one_hot_actions
+
+        # we then sum the estimated along the actions dimension to get the final a tensor with only one
+        # reward per sample that will be the only reward that was not zeroed out in the previous step
+        # (because we will sum zeros with only one reward value)
+        target_q_values = torch.sum(target_q_values, dim=1)
+
+        return target_q_values

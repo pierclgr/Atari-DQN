@@ -11,7 +11,7 @@ import sys
 import hydra
 from omegaconf import DictConfig, OmegaConf
 import torch
-from src.wrappers import deepmind_atari_wrappers, parallel_vector_atari_deepmind_env
+from src.wrappers import deepmind_atari_wrappers, parallel_vector_atari_deepmind_env, atari_deepmind_env
 from gym.wrappers import TimeLimit
 from gym.vector import VectorEnv
 
@@ -49,7 +49,17 @@ def trainer(config: DictConfig) -> None:
                                                    render_mode=None)
 
     # create the testing environment
-    test_env = gym.make(config.env_name, obs_type="rgb", render_mode="rgb_array")
+    test_env = atari_deepmind_env(config.env_name, render_mode="rgb_array",
+                                  max_episode_steps=config.max_steps_per_episode,
+                                  noop_max=config.preprocessing.noop_max,
+                                  frame_skip=config.preprocessing.n_frames_to_skip,
+                                  episode_life=config.preprocessing.episode_life,
+                                  clip_rewards=config.preprocessing.clip_rewards,
+                                  frame_stack=config.preprocessing.n_frames_per_state,
+                                  scale=config.preprocessing.scale_obs,
+                                  patch_size=config.preprocessing.patch_size,
+                                  grayscale=config.preprocessing.grayscale,
+                                  fire_reset=config.preprocessing.fire_reset)
 
     # set seeds for reproducibility
     test_env = set_reproducibility(training_env=train_env, testing_env=test_env,
@@ -59,18 +69,6 @@ def trainer(config: DictConfig) -> None:
     print(f"Using {device} device...")
     print("Training configuration:")
     pprint.pprint(configuration)
-
-    # apply Atari preprocessing
-    test_env = deepmind_atari_wrappers(test_env, max_episode_steps=config.max_steps_per_episode,
-                                       noop_max=config.preprocessing.noop_max,
-                                       frame_skip=config.preprocessing.n_frames_to_skip,
-                                       episode_life=config.preprocessing.episode_life,
-                                       clip_rewards=config.preprocessing.clip_rewards,
-                                       frame_stack=config.preprocessing.n_frames_per_state,
-                                       scale=config.preprocessing.scale_obs,
-                                       patch_size=config.preprocessing.patch_size,
-                                       grayscale=config.preprocessing.grayscale,
-                                       fire_reset=config.preprocessing.fire_reset)
 
     # Instantiate the recorder wrapper around test environment to record and
     # visualize the environment learning progress

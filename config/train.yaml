@@ -10,7 +10,7 @@ preprocessing:
   fire_reset: false
 buffer_capacity: 100000 # 1000000
 num_initial_replay_samples: 1000 # 50000
-num_training_steps: 5000000 # 50000000
+num_training_steps: 4000000 # 50000000
 batch_size: 32
 buffered_avg_reward_size: 100
 num_parallel_envs: 4
@@ -23,7 +23,8 @@ checkpoint_every: 2000
 home_directory: /Users/pierclgr/PycharmProjects/AAS_project/
 env_name: BreakoutNoFrameskip-v4
 wandb_run_name: Train_Breakout_DQN
-checkpoint_file: breakout_checkpoint
+checkpoint_file: breakout_dqn_checkpoint
+agent: ClippedDoubleDQNAgent
 model: DQNNetwork
 output_model_file: breakout_final_model
 max_steps_per_episode: 1000

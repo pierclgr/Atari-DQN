@@ -233,17 +233,19 @@ def atari_deepmind_env(env_name, max_episode_steps: int = None, noop_max: int = 
     return env
 
 
-def vector_atari_deepmind_env(env_name, num_envs: int, max_episode_steps: int = None,
-                              noop_max: int = 30, frame_skip: int = 4,
-                              episode_life: bool = True, clip_rewards: bool = True, frame_stack: int = 4,
-                              scale: bool = True, patch_size: int = 84, grayscale: bool = True,
-                              fire_reset: bool = True, render_mode: str = None):
-    make_env = lambda: atari_deepmind_env(env_name=env_name, max_episode_steps=max_episode_steps, noop_max=noop_max,
-                                          frame_skip=frame_skip, episode_life=episode_life,
-                                          clip_rewards=clip_rewards,
-                                          frame_stack=frame_stack, scale=scale, patch_size=patch_size,
-                                          grayscale=grayscale,
-                                          fire_reset=fire_reset, render_mode=render_mode)
-    env = AsyncVectorEnv([make_env for _ in range(num_envs)])
+def parallel_vector_atari_deepmind_env(env_name, num_envs: int, max_episode_steps: int = None,
+                                       noop_max: int = 30, frame_skip: int = 4,
+                                       episode_life: bool = True, clip_rewards: bool = True, frame_stack: int = 4,
+                                       scale: bool = True, patch_size: int = 84, grayscale: bool = True,
+                                       fire_reset: bool = True, render_mode: str = None):
+    make_atari_deepmind_env = lambda: atari_deepmind_env(env_name=env_name, max_episode_steps=max_episode_steps,
+                                                         noop_max=noop_max,
+                                                         frame_skip=frame_skip, episode_life=episode_life,
+                                                         clip_rewards=clip_rewards,
+                                                         frame_stack=frame_stack, scale=scale,
+                                                         patch_size=patch_size,
+                                                         grayscale=grayscale,
+                                                         fire_reset=fire_reset, render_mode=render_mode)
+    env = AsyncVectorEnv([make_atari_deepmind_env for _ in range(num_envs)])
 
     return env

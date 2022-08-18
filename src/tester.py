@@ -10,7 +10,7 @@ import gym
 
 from src.agents import DQNAgent
 from src.logger import WandbLogger
-from src.utils import get_device, manual_record_trigger
+from src.utils import get_device
 from src.wrappers import deepmind_atari_wrappers
 
 

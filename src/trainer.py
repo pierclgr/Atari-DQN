@@ -5,13 +5,13 @@ from src.agents import DQNAgent
 import importlib
 import gym
 from logger import WandbLogger
-from src.utils import set_reproducibility, get_device, checkpoint_episode_trigger
+from src.utils import set_reproducibility, get_device, checkpoint_step_trigger
 from functools import partial
 import sys
 import hydra
 from omegaconf import DictConfig, OmegaConf
 import torch
-from src.wrappers import deepmind_atari_wrappers
+from src.wrappers import deepmind_atari_wrappers, parallel_vector_atari_deepmind_env
 from gym.wrappers import TimeLimit
 from gym.vector import VectorEnv
 
@@ -34,7 +34,19 @@ def trainer(config: DictConfig) -> None:
         print(gpu_info)
 
     # create the training environment
-    train_env = gym.make(config.env_name, obs_type="rgb")
+    train_env = parallel_vector_atari_deepmind_env(env_name=config.env_name,
+                                                   num_envs=config.num_parallel_envs,
+                                                   max_episode_steps=config.max_steps_per_episode,
+                                                   noop_max=config.preprocessing.noop_max,
+                                                   frame_skip=config.preprocessing.n_frames_to_skip,
+                                                   episode_life=config.preprocessing.episode_life,
+                                                   clip_rewards=config.preprocessing.clip_rewards,
+                                                   frame_stack=config.preprocessing.n_frames_per_state,
+                                                   scale=config.preprocessing.scale_obs,
+                                                   patch_size=config.preprocessing.patch_size,
+                                                   grayscale=config.preprocessing.grayscale,
+                                                   fire_reset=config.preprocessing.fire_reset,
+                                                   render_mode=None)
 
     # create the testing environment
     test_env = gym.make(config.env_name, obs_type="rgb", render_mode="rgb_array")
@@ -47,18 +59,6 @@ def trainer(config: DictConfig) -> None:
     print(f"Using {device} device...")
     print("Training configuration:")
     pprint.pprint(configuration)
-
-    # apply Atari preprocessing
-    train_env = deepmind_atari_wrappers(train_env, max_episode_steps=config.max_steps_per_episode,
-                                        noop_max=config.preprocessing.noop_max,
-                                        frame_skip=config.preprocessing.n_frames_to_skip,
-                                        episode_life=config.preprocessing.episode_life,
-                                        clip_rewards=config.preprocessing.clip_rewards,
-                                        frame_stack=config.preprocessing.n_frames_per_state,
-                                        scale=config.preprocessing.scale_obs,
-                                        patch_size=config.preprocessing.patch_size,
-                                        grayscale=config.preprocessing.grayscale,
-                                        fire_reset=config.preprocessing.fire_reset)
 
     # apply Atari preprocessing
     test_env = deepmind_atari_wrappers(test_env, max_episode_steps=config.max_steps_per_episode,
@@ -74,11 +74,13 @@ def trainer(config: DictConfig) -> None:
 
     # Instantiate the recorder wrapper around test environment to record and
     # visualize the environment learning progress
-    episode_trigger = partial(checkpoint_episode_trigger, save_video_every=config.test_video.save_video_every)
+    episode_trigger = partial(checkpoint_step_trigger,
+                              save_video_every=config.test_video.save_every_n_gradient_steps,
+                              num_envs=config.num_parallel_envs)
     test_env = gym.wrappers.RecordVideo(test_env,
                                         video_folder=f'{config.home_directory}{config.test_video.output_folder}',
-                                        name_prefix=f"{config.test_video.file_name}", episode_trigger=episode_trigger)
-    test_env.episode_id = 1
+                                        name_prefix=f"{config.test_video.file_name}", step_trigger=episode_trigger)
+    test_env.step_id = config.num_parallel_envs * config.test_video.save_every_n_gradient_steps
 
     # import specified model
     model = getattr(importlib.import_module("src.models"), config.model)
@@ -91,12 +93,13 @@ def trainer(config: DictConfig) -> None:
                   buffer_capacity=config.buffer_capacity, checkpoint_file=config.checkpoint_file,
                   num_training_steps=config.num_training_steps, batch_size=config.batch_size,
                   target_update_steps=config.c, logger=logger, eps_max=config.eps_max, eps_min=config.eps_min,
-                  eps_decay_steps=config.eps_decay_steps, checkpoint_every=config.checkpoint_every,
+                  eps_decay_steps=config.eps_decay_steps, checkpoint_every=config.checkpoint_every_n_gradient_steps,
                   home_directory=config.home_directory, learning_rate=config.optimizer.lr,
                   num_initial_replay_samples=config.num_initial_replay_samples, discount_rate=config.gamma,
                   gradient_momentum=config.optimizer.momentum, gradient_alpha=config.optimizer.squared_momentum,
                   gradient_eps=config.optimizer.min_squared_gradient, save_space=save_space,
-                  buffered_avg_reward_size=config.buffered_avg_reward_size)
+                  buffered_avg_reward_size=config.buffered_avg_reward_size,
+                  test_every=config.test_every_n_gradient_steps)
 
     # train the environment
     agent.train()

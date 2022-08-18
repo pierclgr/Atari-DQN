@@ -49,7 +49,8 @@ def trainer(config: DictConfig) -> None:
                                                    render_mode=None)
 
     # create the testing environment
-    test_env = atari_deepmind_env(config.env_name, render_mode="rgb_array",
+    test_env = atari_deepmind_env(env_name=config.env_name,
+                                  render_mode="rgb_array",
                                   max_episode_steps=config.max_steps_per_episode,
                                   noop_max=config.preprocessing.noop_max,
                                   frame_skip=config.preprocessing.n_frames_to_skip,

@@ -11,7 +11,7 @@ import gym
 from src.agents import DQNAgent
 from src.logger import WandbLogger
 from src.utils import get_device
-from src.wrappers import deepmind_atari_wrappers, atari_deepmind_env
+from src.wrappers import atari_deepmind_env
 
 
 @hydra.main(version_base=None, config_path="../config/", config_name="test")
@@ -34,7 +34,8 @@ def tester(config: DictConfig):
     render_mode = "rgb_array" if in_colab else "human"
 
     # apply Atari preprocessing
-    test_env = atari_deepmind_env(config.env_name, render_mode="rgb_array",
+    test_env = atari_deepmind_env(env_name=config.env_name,
+                                  render_mode=render_mode,
                                   max_episode_steps=config.max_steps_per_episode,
                                   noop_max=config.preprocessing.noop_max,
                                   frame_skip=config.preprocessing.n_frames_to_skip,

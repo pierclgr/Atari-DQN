@@ -80,7 +80,7 @@ class TrainableExperienceReplayAgent(Agent):
         self.eps_max = eps_max
         self.eps_min = eps_min
         self.eps_decay_steps = eps_decay_steps
-        self.target_update_steps = target_update_steps
+        self.target_update_steps = target_update_steps # // self.env.num_envs
         self.learning_rate = learning_rate
         self.logger = logger
         self.checkpoint_every = checkpoint_every
@@ -210,6 +210,7 @@ class TrainableExperienceReplayAgent(Agent):
             episode_rewards = np.asarray([0 for _ in range(self.env.num_envs)], dtype=np.float64)
             episode_reward = 0
             test_episode_reward = 0
+            num_test_episodes = 0
             reward_buffer = deque([], maxlen=self.rew_buf_size)
             test_reward_buffer = deque([], maxlen=self.rew_buf_size)
 
@@ -217,9 +218,9 @@ class TrainableExperienceReplayAgent(Agent):
             # network to eval mode to avoid any training; at the same time
             self.initialize_experience()
         else:
-            num_done_episodes, train_loss, total_reward_buffer, eps, total_steps, test_total_reward_buffer, \
-            episode_rewards, episode_reward, test_episode_reward, reward_buffer, \
-            test_reward_buffer = checkpoint_info
+            num_done_episodes, num_test_episodes, train_loss, total_reward_buffer, eps, total_steps, \
+                test_total_reward_buffer, episode_rewards, episode_reward, test_episode_reward, reward_buffer, \
+                test_reward_buffer = checkpoint_info
             self.eps = eps
 
         self.testing_env.step_id += total_steps
@@ -227,7 +228,7 @@ class TrainableExperienceReplayAgent(Agent):
         # compute the average reward
         average_episode_reward = float((total_reward_buffer / num_done_episodes) if num_done_episodes > 0 else 0)
         test_average_episode_reward = float(
-            (test_total_reward_buffer / num_done_episodes) if num_done_episodes > 0 else 0)
+            (test_total_reward_buffer / num_test_episodes) if num_test_episodes > 0 else 0)
 
         # compute the buffered average reward
         buf_average_reward = float(np.mean(reward_buffer).item() if reward_buffer else 0)
@@ -352,8 +353,17 @@ class TrainableExperienceReplayAgent(Agent):
                 test_total_reward_buffer += test_episode_reward
                 test_reward_buffer.append(test_episode_reward)
 
+                # increment the number of test episodes
+                num_test_episodes += 1
+
+                # compute the test average reward
+                test_average_episode_reward = float(
+                    (test_total_reward_buffer / num_test_episodes) if num_test_episodes > 0 else 0)
+                buf_test_average_reward = float(np.mean(test_reward_buffer).item() if test_reward_buffer else 0)
+
                 print(
-                    f"Episodes: {num_done_episodes}, eps: {self.eps}, total_steps: {total_steps}, "
+                    f"Episodes: {num_done_episodes}, num_test_episodes: {num_test_episodes},"
+                    f" eps: {self.eps}, total_ steps: {total_steps}, "
                     f"buffer_samples: {len(self.replay_buffer)}, train_loss: {train_loss}, "
                     f"train_average_episode_reward: {average_episode_reward}, "
                     f"test_average_episode_reward: {test_average_episode_reward}, "
@@ -361,11 +371,11 @@ class TrainableExperienceReplayAgent(Agent):
                     f"buffered_test_average_episode_reward: {buf_test_average_reward}, "
                     f"train_episode_reward: {episode_reward}, "
                     f"test_episode_reward: {test_episode_reward}")
-
-            # compute the test average reward
-            test_average_episode_reward = float(
-                (test_total_reward_buffer / num_done_episodes) if num_done_episodes > 0 else 0)
-            buf_test_average_reward = float(np.mean(test_reward_buffer).item() if test_reward_buffer else 0)
+            else:
+                # compute the test average reward
+                test_average_episode_reward = float(
+                    (test_total_reward_buffer / num_done_episodes) if num_done_episodes > 0 else 0)
+                buf_test_average_reward = float(np.mean(test_reward_buffer).item() if test_reward_buffer else 0)
 
             # if logging is required, we update it for every training step
             if self.logger:
@@ -384,6 +394,7 @@ class TrainableExperienceReplayAgent(Agent):
             if gradient_descent_steps % self.checkpoint_every == 0:
                 print(f"Checkpointing model at step {total_steps}...")
                 checkpoint_info = {'episode': num_done_episodes,
+                                   'test_episode': num_test_episodes,
                                    'total_steps': total_steps,
                                    'eps': self.eps,
                                    'train_loss': train_loss,
@@ -521,6 +532,7 @@ class TrainableExperienceReplayAgent(Agent):
                 print("Model, optimizer and replay buffer loaded from checkpoint.")
 
                 episode = checkpoint['episode']
+                num_test_episodes = checkpoint["test_episode"]
                 eps = checkpoint['eps']
                 total_steps = checkpoint['total_steps']
                 train_loss = checkpoint['train_loss']
@@ -533,6 +545,7 @@ class TrainableExperienceReplayAgent(Agent):
                 test_episode_reward = checkpoint["test_episode_reward"]
 
                 return_tuple = (episode,
+                                num_test_episodes,
                                 train_loss,
                                 total_reward_buffer,
                                 eps,

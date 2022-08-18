@@ -25,7 +25,7 @@ home_directory: /Users/pierclgr/PycharmProjects/AAS_project/
 env_name: BreakoutNoFrameskip-v4
 wandb_run_name: Train_Breakout_DQN
 checkpoint_file: breakout_dqn_checkpoint
-agent: DoubleDQNAgent
+agent: DQNAgent
 model: DQNNetwork
 output_model_file: breakout_final_model
 max_steps_per_episode: 1000

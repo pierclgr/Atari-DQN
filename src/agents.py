@@ -207,7 +207,7 @@ class TrainableExperienceReplayAgent(Agent):
             total_reward_buffer = 0
             total_steps = 0
             test_total_reward_buffer = 0
-            episode_rewards = np.asarray([0 for _ in range(self.env.num_envs)], dtype=np.float)
+            episode_rewards = np.asarray([0 for _ in range(self.env.num_envs)], dtype=np.float64)
             episode_reward = 0
             test_episode_reward = 0
             reward_buffer = deque([], maxlen=self.rew_buf_size)

@@ -28,7 +28,8 @@ from src.utils import StateTransition
 
 class Agent(ABC):
     @abstractmethod
-    def __init__(self, *args) -> None:
+    def __init__(self, env: gym.Env,) -> None:
+        self.env = env
         pass
 
     @abstractmethod
@@ -36,25 +37,23 @@ class Agent(ABC):
         pass
 
 
-# create agent playing by following a learned DQN policy
-class TrainableAgent(Agent, ABC):
+# create a trainable agent with experience replay
+class TrainableExperienceReplayAgent(Agent):
     def __init__(self,
-                 env: gym.vector.AsyncVectorEnv,
                  testing_env: gym.Env,
                  device: torch.device,
                  home_directory: str,
                  checkpoint_file: str,
                  q_function: Type[RLNetwork] = DQNNetwork,
-                 buffer_capacity: int = 1000000,
                  num_training_steps: int = 50000000,
                  batch_size: int = 32,
                  eps_max: float = 1,
                  eps_min: float = 0.1,
                  eps_decay_steps: int = 1000000,
-                 discount_rate: float = 0.99,
                  target_update_steps: int = 10000,
                  learning_rate: float = 0.00025,
-                 checkpoint_every: int = 100,
+                 checkpoint_every: int = 2000,
+                 buffer_capacity: int = 100000,
                  num_initial_replay_samples: int = 50000,
                  gradient_momentum: float = 0.95,
                  gradient_alpha: float = 0.95,
@@ -63,10 +62,12 @@ class TrainableAgent(Agent, ABC):
                  criterion: nn.Module = None,
                  optimizer: torch.optim.Optimizer = None,
                  logger: Logger = None,
-                 save_space: bool = True
+                 save_space: bool = True,
+                 **kwargs
                  ) -> None:
 
-        self.env = env
+        super(TrainableExperienceReplayAgent, self).__init__(**kwargs)
+
         self.testing_env = testing_env
         self.num_training_steps = num_training_steps
         self.batch_size = batch_size
@@ -75,7 +76,6 @@ class TrainableAgent(Agent, ABC):
         self.eps_max = eps_max
         self.eps_min = eps_min
         self.eps_decay_steps = eps_decay_steps
-        self.discount_rate = discount_rate
         self.target_update_steps = target_update_steps
         self.learning_rate = learning_rate
         self.logger = logger
@@ -91,13 +91,13 @@ class TrainableAgent(Agent, ABC):
 
         self.replay_buffer = ReplayBuffer(capacity=buffer_capacity)
 
-        self.input_shape = env.observation_space.shape
+        self.input_shape = self.env.observation_space.shape
 
         self.q_function = q_function(input_shape=self.input_shape,
-                                     output_channels=env.action_space.n).to(device=self.device)
+                                     output_channels=self.env.action_space.n).to(device=self.device)
 
         self.target_q_function = q_function(input_shape=self.input_shape,
-                                            output_channels=env.action_space.n).to(device=self.device)
+                                            output_channels=self.env.action_space.n).to(device=self.device)
         self.target_q_function.load_state_dict(self.q_function.state_dict())
 
         if not criterion:
@@ -670,9 +670,11 @@ class TrainableAgent(Agent, ABC):
         return loss.detach().item()
 
 
-class DQNAgent(TrainableAgent):
-    def __init__(self, **kwargs):
+class DQNAgent(TrainableExperienceReplayAgent):
+    def __init__(self, discount_rate: float = 0.99, **kwargs):
         super().__init__(**kwargs)
+
+        self.discount_rate = discount_rate
 
     def compute_labels_and_predictions(self, state_transitions_batch: StateTransition):
         # compute the target q values accordingly to the agent's algorithm

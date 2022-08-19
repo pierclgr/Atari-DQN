@@ -225,7 +225,7 @@ class TrainableExperienceReplayAgent(Agent):
                 test_reward_buffer, value_estimate = checkpoint_info
             self.eps = eps
 
-        self.testing_env.step_id += total_steps
+        self.testing_env.step_id += total_steps * self.env.num_envs
 
         # compute the average reward
         average_episode_reward = float((total_reward_buffer / num_done_episodes) if num_done_episodes > 0 else 0)

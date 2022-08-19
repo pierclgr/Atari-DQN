@@ -5,7 +5,7 @@ from src.agents import DQNAgent
 import importlib
 import gym
 from logger import WandbLogger
-from src.utils import set_reproducibility, get_device, checkpoint_step_trigger
+from src.utils import set_reproducibility, get_device, video_step_trigger
 from functools import partial
 import sys
 import hydra
@@ -73,7 +73,7 @@ def trainer(config: DictConfig) -> None:
 
     # Instantiate the recorder wrapper around test environment to record and
     # visualize the environment learning progress
-    episode_trigger = partial(checkpoint_step_trigger,
+    episode_trigger = partial(video_step_trigger,
                               save_video_every=config.test_video.save_every_n_gradient_steps,
                               num_envs=config.num_parallel_envs)
     test_env = gym.wrappers.RecordVideo(test_env,

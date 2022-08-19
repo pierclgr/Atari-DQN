@@ -1,0 +1,23 @@
+preprocessing:
+  n_frames_to_skip: 4
+  n_frames_per_state: 4
+  patch_size: 84
+  grayscale: true
+  noop_max: 0
+  scale_obs: true
+  episode_life: false
+  clip_rewards: true
+  fire_reset: false
+buffered_avg_reward_size: 100
+home_directory: /Users/pierclgr/PycharmProjects/AAS_project/
+env_name: VideoPinballNoFrameskip-v4
+wandb_run_name: Test_VideoPinball_DQN
+agent: DQNAgent
+model: DQNNetwork
+output_model_file: videopinball_dqn_final_model
+max_steps_per_episode: null
+logging: true
+in_colab: true
+test_video:
+  file_name: test_videopinball_dqn
+  output_folder: test_videos/

@@ -16,7 +16,7 @@ from gym.wrappers import TimeLimit
 from gym.vector import VectorEnv
 
 
-@hydra.main(version_base=None, config_path="../config/", config_name="train")
+@hydra.main(version_base=None, config_path="../config/", config_name="videopinball_dqn_train")
 def trainer(config: DictConfig) -> None:
     configuration = OmegaConf.to_object(config)
 

@@ -212,6 +212,7 @@ class TrainableExperienceReplayAgent(Agent):
             episode_reward = 0
             test_episode_reward = 0
             num_test_episodes = 0
+            value_estimate = 0
             reward_buffer = deque([], maxlen=self.rew_buf_size)
             test_reward_buffer = deque([], maxlen=self.rew_buf_size)
 
@@ -220,8 +221,8 @@ class TrainableExperienceReplayAgent(Agent):
             self.initialize_experience()
         else:
             num_done_episodes, num_test_episodes, train_loss, total_reward_buffer, eps, total_steps, \
-            test_total_reward_buffer, episode_rewards, episode_reward, test_episode_reward, reward_buffer, \
-            test_reward_buffer = checkpoint_info
+                test_total_reward_buffer, episode_rewards, episode_reward, test_episode_reward, reward_buffer, \
+                test_reward_buffer, value_estimate = checkpoint_info
             self.eps = eps
 
         self.testing_env.step_id += total_steps
@@ -247,6 +248,7 @@ class TrainableExperienceReplayAgent(Agent):
             self.logger.log("test_episode_reward", test_episode_reward, total_steps)
             self.logger.log("buffered_train_average_episode_reward", buf_average_reward, total_steps)
             self.logger.log("buffered_test_average_episode_reward", buf_test_average_reward, total_steps)
+            self.logger.log("value_estimate", value_estimate, total_steps)
 
         if checkpoint_info:
             print(f"Loaded checkpoint:")
@@ -260,7 +262,8 @@ class TrainableExperienceReplayAgent(Agent):
                   f"\t- buffered_train_average_episode_reward: {buf_average_reward}\n"
                   f"\t- buffered_test_average_episode_reward: {buf_test_average_reward}\n"
                   f"\t- train_episode_reward: {episode_reward}\n"
-                  f"\t- test_episode_reward: {test_episode_reward}\n")
+                  f"\t- test_episode_reward: {test_episode_reward}\n"
+                  f"\t- value_estimate: {value_estimate}")
 
         # for each episode
         print(f"Training for {max(0, self.num_training_steps - total_steps)} steps...")
@@ -304,19 +307,19 @@ class TrainableExperienceReplayAgent(Agent):
             state_transitions_batch = self.sample_experience(num_samples=self.batch_size)
 
             # do a training step
-            train_loss = self.training_step(state_transitions_batch=state_transitions_batch)
+            train_loss, value_estimate = self.training_step(state_transitions_batch=state_transitions_batch)
+            value_estimate = torch.mean(value_estimate).item()
 
             # update the number of total steps
-            total_steps += self.env.num_envs
-            gradient_descent_steps = total_steps // self.env.num_envs
+            total_steps += 1
 
             # update the progress bar
-            train_pbar.update(self.env.num_envs)
+            train_pbar.update(1)
 
             # every C gradient descent steps, we need to reset the target_q_function weights by setting its
             # weights
             # to the weights of the q_function
-            self.update_target_network(gradient_descent_steps % self.target_update_steps == 0)
+            self.update_target_network(total_steps % self.target_update_steps == 0)
 
             # add the rewards to the corresponding episode reward list
             episode_rewards += rewards
@@ -342,7 +345,7 @@ class TrainableExperienceReplayAgent(Agent):
             buf_average_reward = float(np.mean(reward_buffer).item() if reward_buffer else 0)
 
             # test the agent every test_every gradient steps
-            if gradient_descent_steps % self.test_every == 0:
+            if total_steps % self.test_every == 0:
                 # test the agent
                 test_episode_reward = self.test()
 
@@ -363,15 +366,18 @@ class TrainableExperienceReplayAgent(Agent):
                 buf_test_average_reward = float(np.mean(test_reward_buffer).item() if test_reward_buffer else 0)
 
                 print(
-                    f"Episodes: {num_done_episodes}, num_test_episodes: {num_test_episodes},"
-                    f" eps: {self.eps}, total_ steps: {total_steps}, "
+                    f"Episodes: {num_done_episodes}, num_test_episodes: {num_test_episodes}, "
+                    f"eps: {self.eps}, total_steps: {total_steps}, "
+                    f"total_env_steps: {total_steps * self.env.num_envs}"
                     f"buffer_samples: {len(self.replay_buffer)}, train_loss: {train_loss}, "
                     f"train_average_episode_reward: {average_episode_reward}, "
                     f"test_average_episode_reward: {test_average_episode_reward}, "
                     f"buffered_train_average_episode_reward: {buf_average_reward}, "
                     f"buffered_test_average_episode_reward: {buf_test_average_reward}, "
                     f"train_episode_reward: {episode_reward}, "
-                    f"test_episode_reward: {test_episode_reward}")
+                    f"test_episode_reward: {test_episode_reward}"
+                    f"value_estimates: {value_estimate}"
+                )
             else:
                 # compute the test average reward
                 test_average_episode_reward = float(
@@ -390,9 +396,10 @@ class TrainableExperienceReplayAgent(Agent):
                 self.logger.log("test_episode_reward", test_episode_reward, total_steps)
                 self.logger.log("buffered_train_average_episode_reward", buf_average_reward, total_steps)
                 self.logger.log("buffered_test_average_episode_reward", buf_test_average_reward, total_steps)
+                self.logger.log("value_estimate", value_estimate, total_steps)
 
             # checkpoint the training every checkpoint_every gradient steps
-            if gradient_descent_steps % self.checkpoint_every == 0:
+            if total_steps % self.checkpoint_every == 0:
                 print(f"Checkpointing model at step {total_steps}...")
                 checkpoint_info = {'episode': num_done_episodes,
                                    'test_episode': num_test_episodes,
@@ -405,7 +412,8 @@ class TrainableExperienceReplayAgent(Agent):
                                    "test_reward_buffer": test_reward_buffer,
                                    "episode_rewards": episode_rewards,
                                    "episode_reward": episode_reward,
-                                   "test_episode_reward": test_episode_reward}
+                                   "test_episode_reward": test_episode_reward,
+                                   "value_estimate": value_estimate}
 
                 filename = f"{self.checkpoint_file}_step_{total_steps}"
 
@@ -544,6 +552,7 @@ class TrainableExperienceReplayAgent(Agent):
                 episode_rewards = checkpoint["episode_rewards"]
                 episode_reward = checkpoint["episode_reward"]
                 test_episode_reward = checkpoint["test_episode_reward"]
+                value_estimate = checkpoint["value_estimate"]
 
                 return_tuple = (episode,
                                 num_test_episodes,
@@ -556,7 +565,8 @@ class TrainableExperienceReplayAgent(Agent):
                                 episode_reward,
                                 test_episode_reward,
                                 reward_buffer,
-                                test_reward_buffer)
+                                test_reward_buffer,
+                                value_estimate)
 
                 return return_tuple
             else:
@@ -705,7 +715,7 @@ class TrainableExperienceReplayAgent(Agent):
         # now we perform a gradient descent step over the parameters of the q_function
         self.gradient_descent_step(loss, self.optimizer)
 
-        return loss.detach().item()
+        return loss.detach().item(), target_q_values
 
 
 class DQNAgent(TrainableExperienceReplayAgent):
@@ -736,16 +746,18 @@ class DQNAgent(TrainableExperienceReplayAgent):
         # states
         target_q_values = state_transitions_batch.reward + target_q_values
 
-        # we now compute the estimated rewards for the current states using the q_function, but before we
-        # zero the gradients of the optimizer
+        # we now compute the estimated rewards for the current states using the q_function
         q_values = self.q_function(state_transitions_batch.state)
+
+        # let's now get the number of possible actions for the current environment
+        num_actions = self.env.action_space[0].n if isinstance(self.env, SubprocVecEnv) else self.env.action_space.n
 
         # the previously computed tensor contains the estimated reward for each of the possible action;
         # since we need to compute the loss between these estimated rewards and the target rewards computed
         # before, this latter tensor only contains the future reward with no information about the action,
         # so what we do is computing a one-hot tensor which zeroes the estimated rewards for actions that
         # are not the actual taken actions
-        one_hot_actions = torch.nn.functional.one_hot(state_transitions_batch.action, self.env.action_space[0].n)
+        one_hot_actions = torch.nn.functional.one_hot(state_transitions_batch.action, num_actions)
 
         # by multiplying the estimated reward tensor and the one hot action tensor, we will get a tensor of
         # the same shape that contains 0 as a reward for actions that are not the current action while
@@ -786,29 +798,35 @@ class DoubleDQNAgent(DQNAgent):
         # reward and the discounted reward at the next state, which in this case is computed by the
         # target_q_function
 
-        # as a first step, we feed the batch of next states to the q function (q network) to compute the action value
-        # estimates
+        # as a first step, we feed the next states to the q function (q_network) to get a value for each possible
+        # action; the output will be a tensor containing a value for each possible action for all the next states of
+        # the batch
         q_values = self.q_function(state_transitions_batch.next_state)
 
-        # once we did this, we get the actions having the maximum estimated q value
+        # once we did this, for each next state we get the action to select with the highest value
         actions_with_max_value = torch.argmax(q_values, dim=1)
 
         # now, we feed the batch of next states to the target q function (target q network) to compute the target action
-        # value estimates
+        # value estimates for each of the next states; the output will be a tensor containing an estimated value for
+        # each possible action for all the next states of the batch
         target_q_values = self.target_q_function(state_transitions_batch.next_state)
+
+        # let's now get the number of possible actions for the current environment
+        num_actions = self.env.action_space[0].n if isinstance(self.env, SubprocVecEnv) else self.env.action_space.n
 
         # now we compute a one-hot tensor that we will use to zero out the target q values of actions that are not the
         # actions with the maximum estimated values
-        one_hot_actions = torch.nn.functional.one_hot(actions_with_max_value, self.env.action_space[0].n)
+        one_hot_actions = torch.nn.functional.one_hot(actions_with_max_value, num_actions)
 
-        # by multiplying the estimated reward tensor and the one hot action tensor, we will get a tensor of
-        # the same shape that contains 0 as a reward for actions that are not the current action while
-        # contains the estimated reward for the action that is the current action
+        # by multiplying the tensor of the estimates with the one hot action tensor, we will get a tensor of the same
+        # shape that contains 0 as reward for actions that are not the actions with the highest value while it
+        # will also contain the estimated value for actions that are the actions with the highest value
         target_q_values *= one_hot_actions
 
-        # we then sum the estimated along the actions dimension to get the final a tensor with only one
-        # reward per sample that will be the only reward that was not zeroed out in the previous step
-        # (because we will sum zeros with only one reward value)
+        # we then sum the estimated along the actions dimension to get the final a tensor and to get rid of the extra
+        # dimension; since we have 0 for the actions for each next state that we're not interested into, by summing
+        # along a dimension, we get rid of the "action" dimension by only keeping the estimated value for the action
+        # with the highest value
         target_q_values = torch.sum(target_q_values, dim=1)
 
         return target_q_values

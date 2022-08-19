@@ -368,7 +368,7 @@ class TrainableExperienceReplayAgent(Agent):
                 print(
                     f"Episodes: {num_done_episodes}, num_test_episodes: {num_test_episodes}, "
                     f"eps: {self.eps}, total_steps: {total_steps}, "
-                    f"total_env_steps: {total_steps * self.env.num_envs}"
+                    f"total_env_steps: {total_steps * self.env.num_envs}, "
                     f"buffer_samples: {len(self.replay_buffer)}, train_loss: {train_loss}, "
                     f"train_average_episode_reward: {average_episode_reward}, "
                     f"test_average_episode_reward: {test_average_episode_reward}, "

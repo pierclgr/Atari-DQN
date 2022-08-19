@@ -27,6 +27,7 @@ import signal
 
 # define a superclass "Agent" for all the possible Agents; this will act as an interface for the other classes
 from src.utils import StateTransition
+from src.wrappers import SubprocVecEnv
 
 
 class Agent(ABC):
@@ -80,7 +81,7 @@ class TrainableExperienceReplayAgent(Agent):
         self.eps_max = eps_max
         self.eps_min = eps_min
         self.eps_decay_steps = eps_decay_steps
-        self.target_update_steps = target_update_steps # // self.env.num_envs
+        self.target_update_steps = target_update_steps  # // self.env.num_envs
         self.learning_rate = learning_rate
         self.logger = logger
         self.checkpoint_every = checkpoint_every
@@ -96,7 +97,7 @@ class TrainableExperienceReplayAgent(Agent):
 
         self.replay_buffer = ReplayBuffer(capacity=buffer_capacity)
 
-        if isinstance(self.env, gym.vector.AsyncVectorEnv):
+        if isinstance(self.env, SubprocVecEnv):
             self.input_shape = self.env.observation_space.shape[1:]
             self.output_channels = self.env.action_space[0].n
         else:
@@ -219,8 +220,8 @@ class TrainableExperienceReplayAgent(Agent):
             self.initialize_experience()
         else:
             num_done_episodes, num_test_episodes, train_loss, total_reward_buffer, eps, total_steps, \
-                test_total_reward_buffer, episode_rewards, episode_reward, test_episode_reward, reward_buffer, \
-                test_reward_buffer = checkpoint_info
+            test_total_reward_buffer, episode_rewards, episode_reward, test_episode_reward, reward_buffer, \
+            test_reward_buffer = checkpoint_info
             self.eps = eps
 
         self.testing_env.step_id += total_steps

@@ -8,8 +8,8 @@ preprocessing:
   episode_life: true
   clip_rewards: true
   fire_reset: false
-buffer_capacity: 10000 # 30000 # 100000 # 1000000
-num_initial_replay_samples: 5000 # 10000 # 50000
+buffer_capacity: 100000 # 1000000
+num_initial_replay_samples:  50000
 num_training_steps: 5000000 # 50000000
 batch_size: 32
 buffered_avg_reward_size: 100
@@ -19,21 +19,21 @@ eps_min: 0.1
 eps_decay_steps: 1000000
 gamma: 0.99  # discount factor
 c: 10000  # num steps after which to do target update
-checkpoint_every_n_gradient_steps: 2000
+checkpoint_every_n_gradient_steps: 10000
 test_every_n_gradient_steps: 2000
 home_directory: /Users/pierclgr/PycharmProjects/AAS_project/
-env_name: VideoPinballNoFrameskip-v4
-wandb_run_name: Train_VideoPinball_DQN
-checkpoint_file: videopinball_dqn_checkpoint
+env_name: BreakoutNoFrameskip-v4
+wandb_run_name: Train_Breakout_DQN
+checkpoint_file: breakout_dqn_checkpoint
 agent: DQNAgent
 model: DQNNetwork
-output_model_file: videopinball_dqn_final_model
+output_model_file: breakout_dqn_final_model
 max_steps_per_episode: 1000
 logging: true
 save_space: true
 test_video:
-  file_name: train_videopinball_dqn
-  save_every_n_gradient_steps: 2000
+  file_name: train_video_breakout_dqn
+  save_every_n_test_episodes: 5
   output_folder: test_videos/
 reproducibility:
   train_seed: 1507

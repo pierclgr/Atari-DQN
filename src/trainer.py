@@ -5,7 +5,7 @@ from src.agents import DQNAgent
 import importlib
 import gym
 from logger import WandbLogger
-from src.utils import set_reproducibility, get_device, video_step_trigger
+from src.utils import set_reproducibility, get_device, video_episode_trigger
 from functools import partial
 import sys
 import hydra
@@ -71,12 +71,11 @@ def trainer(config: DictConfig) -> None:
 
     # Instantiate the recorder wrapper around test environment to record and
     # visualize the environment learning progress
-    episode_trigger = partial(video_step_trigger,
-                              save_video_every=config.test_video.save_every_n_gradient_steps,
-                              num_envs=config.num_parallel_envs)
+    episode_trigger = partial(video_episode_trigger,
+                              save_video_every=config.test_video.save_every_n_test_episodes)
     test_env = gym.wrappers.RecordVideo(test_env,
                                         video_folder=f'{config.home_directory}{config.test_video.output_folder}',
-                                        name_prefix=f"{config.test_video.file_name}", step_trigger=episode_trigger)
+                                        name_prefix=f"{config.test_video.file_name}", episode_trigger=episode_trigger)
 
     # import specified model
     model = getattr(importlib.import_module("src.models"), config.model)

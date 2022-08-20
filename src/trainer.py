@@ -11,7 +11,7 @@ import sys
 import hydra
 from omegaconf import DictConfig, OmegaConf
 import torch
-from src.wrappers import deepmind_atari_wrappers, parallel_vector_atari_deepmind_env, atari_deepmind_env
+from src.wrappers import deepmind_atari_wrappers, vector_atari_deepmind_env, atari_deepmind_env
 from gym.wrappers import TimeLimit
 from gym.vector import VectorEnv
 
@@ -34,19 +34,19 @@ def trainer(config: DictConfig) -> None:
         print(gpu_info)
 
     # create the training environment
-    train_env = parallel_vector_atari_deepmind_env(env_name=config.env_name,
-                                                   num_envs=config.num_parallel_envs,
-                                                   max_episode_steps=config.max_steps_per_episode,
-                                                   noop_max=config.preprocessing.noop_max,
-                                                   frame_skip=config.preprocessing.n_frames_to_skip,
-                                                   episode_life=config.preprocessing.episode_life,
-                                                   clip_rewards=config.preprocessing.clip_rewards,
-                                                   frame_stack=config.preprocessing.n_frames_per_state,
-                                                   scale=config.preprocessing.scale_obs,
-                                                   patch_size=config.preprocessing.patch_size,
-                                                   grayscale=config.preprocessing.grayscale,
-                                                   fire_reset=config.preprocessing.fire_reset,
-                                                   render_mode=None)
+    train_env = vector_atari_deepmind_env(env_name=config.env_name,
+                                          num_envs=config.num_parallel_envs,
+                                          max_episode_steps=config.max_steps_per_episode,
+                                          noop_max=config.preprocessing.noop_max,
+                                          frame_skip=config.preprocessing.n_frames_to_skip,
+                                          episode_life=config.preprocessing.episode_life,
+                                          clip_rewards=config.preprocessing.clip_rewards,
+                                          frame_stack=config.preprocessing.n_frames_per_state,
+                                          scale=config.preprocessing.scale_obs,
+                                          patch_size=config.preprocessing.patch_size,
+                                          grayscale=config.preprocessing.grayscale,
+                                          fire_reset=config.preprocessing.fire_reset,
+                                          render_mode=None)
 
     # create the testing environment
     test_env = atari_deepmind_env(env_name=config.env_name,

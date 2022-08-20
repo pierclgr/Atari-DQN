@@ -20,7 +20,7 @@ from tqdm.auto import tqdm
 from src.models import RLNetwork, DQNNetwork
 from src.buffers import ReplayBuffer
 from natsort import natsorted
-from gym.vector import VectorEnv
+from src.wrappers import VectorEnv
 
 import signal
 

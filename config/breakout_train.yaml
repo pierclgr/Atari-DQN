@@ -19,7 +19,7 @@ eps_min: 0.1
 eps_decay_steps: 1000000
 gamma: 0.99  # discount factor
 c: 10000  # num steps after which to do target update
-checkpoint_every_n_gradient_steps: 2000
+checkpoint_every_n_gradient_steps: 10000
 test_every_n_gradient_steps: 2000
 home_directory: /Users/pierclgr/PycharmProjects/AAS_project/
 env_name: BreakoutNoFrameskip-v4
@@ -33,7 +33,7 @@ logging: true
 save_space: true
 test_video:
   file_name: train_video_breakout_dqn
-  save_every_n_gradient_steps: 2000
+  save_every_n_test_episodes: 5
   output_folder: test_videos/
 reproducibility:
   train_seed: 1507

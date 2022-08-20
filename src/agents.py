@@ -20,8 +20,7 @@ from tqdm.auto import tqdm
 from src.models import RLNetwork, DQNNetwork
 from src.buffers import ReplayBuffer
 from natsort import natsorted
-# from src.wrappers import VectorEnv
-from src.wrappers import SubprocVecEnv as VectorEnv
+from src.wrappers import VectorEnv
 
 import signal
 
@@ -222,8 +221,8 @@ class TrainableExperienceReplayAgent(Agent):
             self.initialize_experience()
         else:
             num_done_episodes, num_test_episodes, train_loss, total_reward_buffer, eps, total_steps, \
-                test_total_reward_buffer, episode_rewards, episode_reward, test_episode_reward, reward_buffer, \
-                test_reward_buffer, value_estimate = checkpoint_info
+            test_total_reward_buffer, episode_rewards, episode_reward, test_episode_reward, reward_buffer, \
+            test_reward_buffer, value_estimate = checkpoint_info
             self.eps = eps
 
         self.testing_env.step_id += total_steps * self.env.num_envs

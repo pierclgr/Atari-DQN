@@ -12,13 +12,10 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 import torch
 from src.wrappers import deepmind_atari_wrappers, vector_atari_deepmind_env, atari_deepmind_env
-from gym.wrappers import TimeLimit
 
 
 @hydra.main(version_base=None, config_path="../config/", config_name="train")
 def trainer(config: DictConfig) -> None:
-    torch.multiprocessing.set_start_method('spawn')
-
     configuration = OmegaConf.to_object(config)
 
     # initialize logger
@@ -80,7 +77,6 @@ def trainer(config: DictConfig) -> None:
     test_env = gym.wrappers.RecordVideo(test_env,
                                         video_folder=f'{config.home_directory}{config.test_video.output_folder}',
                                         name_prefix=f"{config.test_video.file_name}", step_trigger=episode_trigger)
-    test_env.step_id = config.num_parallel_envs * config.test_video.save_every_n_gradient_steps
 
     # import specified model
     model = getattr(importlib.import_module("src.models"), config.model)

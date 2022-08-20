@@ -20,7 +20,7 @@ from tqdm.auto import tqdm
 from src.models import RLNetwork, DQNNetwork
 from src.buffers import ReplayBuffer
 from natsort import natsorted
-from gym.vector.async_vector_env import AsyncVectorEnv
+from gym.vector import VectorEnv
 
 import signal
 
@@ -97,7 +97,7 @@ class TrainableExperienceReplayAgent(Agent):
 
         self.replay_buffer = ReplayBuffer(capacity=buffer_capacity)
 
-        if isinstance(self.env, AsyncVectorEnv):
+        if isinstance(self.env, VectorEnv):
             self.input_shape = self.env.observation_space.shape[1:]
             self.output_channels = self.env.action_space[0].n
         else:
@@ -750,7 +750,7 @@ class DQNAgent(TrainableExperienceReplayAgent):
         q_values = self.q_function(state_transitions_batch.state)
 
         # let's now get the number of possible actions for the current environment
-        num_actions = self.env.action_space[0].n if isinstance(self.env, AsyncVectorEnv) else self.env.action_space.n
+        num_actions = self.env.action_space[0].n if isinstance(self.env, VectorEnv) else self.env.action_space.n
 
         # the previously computed tensor contains the estimated reward for each of the possible action;
         # since we need to compute the loss between these estimated rewards and the target rewards computed
@@ -812,7 +812,7 @@ class DoubleDQNAgent(DQNAgent):
         target_q_values = self.target_q_function(state_transitions_batch.next_state)
 
         # let's now get the number of possible actions for the current environment
-        num_actions = self.env.action_space[0].n if isinstance(self.env, AsyncVectorEnv) else self.env.action_space.n
+        num_actions = self.env.action_space[0].n if isinstance(self.env, VectorEnv) else self.env.action_space.n
 
         # now we compute a one-hot tensor that we will use to zero out the target q values of actions that are not the
         # actions with the maximum estimated values

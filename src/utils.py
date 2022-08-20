@@ -94,9 +94,5 @@ def get_device() -> Tuple[torch.device, Optional[None]]:
     return device, gpu_info
 
 
-def checkpoint_episode_trigger(episode_id: int, save_video_every: int):
-    return episode_id % save_video_every == 0
-
-
-def manual_record_trigger(step_id: int):
-    return step_id < 0
+def video_step_trigger(step_id: int, save_video_every: int, num_envs: int):
+    return step_id % (save_video_every * num_envs) == 0

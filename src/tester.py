@@ -10,8 +10,8 @@ import gym
 
 from src.agents import DQNAgent
 from src.logger import WandbLogger
-from src.utils import get_device, manual_record_trigger
-from src.wrappers import deepmind_atari_wrappers
+from src.utils import get_device
+from src.wrappers import atari_deepmind_env
 
 
 @hydra.main(version_base=None, config_path="../config/", config_name="test")
@@ -33,20 +33,19 @@ def tester(config: DictConfig):
 
     render_mode = "rgb_array" if in_colab else "human"
 
-    # create the testing environment
-    test_env = gym.make(config.env_name, obs_type="rgb", render_mode=render_mode)
-
     # apply Atari preprocessing
-    test_env = deepmind_atari_wrappers(test_env, max_episode_steps=config.max_steps_per_episode,
-                                       noop_max=config.preprocessing.noop_max,
-                                       frame_skip=config.preprocessing.n_frames_to_skip,
-                                       episode_life=config.preprocessing.episode_life,
-                                       clip_rewards=config.preprocessing.clip_rewards,
-                                       frame_stack=config.preprocessing.n_frames_per_state,
-                                       scale=config.preprocessing.scale_obs,
-                                       patch_size=config.preprocessing.patch_size,
-                                       grayscale=config.preprocessing.grayscale,
-                                       fire_reset=config.preprocessing.fire_reset)
+    test_env = atari_deepmind_env(env_name=config.env_name,
+                                  render_mode=render_mode,
+                                  max_episode_steps=config.max_steps_per_episode,
+                                  noop_max=config.preprocessing.noop_max,
+                                  frame_skip=config.preprocessing.n_frames_to_skip,
+                                  episode_life=config.preprocessing.episode_life,
+                                  clip_rewards=config.preprocessing.clip_rewards,
+                                  frame_stack=config.preprocessing.n_frames_per_state,
+                                  scale=config.preprocessing.scale_obs,
+                                  patch_size=config.preprocessing.patch_size,
+                                  grayscale=config.preprocessing.grayscale,
+                                  fire_reset=config.preprocessing.fire_reset)
 
     # Instantiate the recorder wrapper around test environment to record and
     # visualize the environment learning progress

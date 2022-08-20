@@ -1,15 +1,19 @@
 import os
 from collections import deque
-from typing import Callable
+from multiprocessing import Process, Pipe
+from typing import Callable, Optional, Union, List
 
+from baselines.common.vec_env import VecEnv, CloudpickleWrapper
+from gym.core import RenderFrame
 from gym.vector.utils import spaces
 from gym.wrappers import TimeLimit
 import gym
 import numpy as np
 import cv2
+import gym
 
 from baselines.common.atari_wrappers import EpisodicLifeEnv, FireResetEnv, ClipRewardEnv
-from gym.vector import AsyncVectorEnv
+from gym.vector.utils import batch_space
 
 
 class MaxAndSkipEnvCustom(gym.Wrapper):
@@ -222,11 +226,59 @@ def deepmind_atari_wrappers(env, max_episode_steps: int = None, noop_max: int = 
     return env
 
 
+class VectorEnv(gym.Env):
+    def __init__(self, environment_maker, num_envs):
+        self.envs = [environment_maker() for _ in range(num_envs)]
+        self.num_envs = num_envs
+
+        self.observation_space = batch_space(self.envs[0].observation_space, n=num_envs)
+        self.action_space = batch_space(self.envs[0].action_space, n=num_envs)
+
+    def seed(self, seed: Optional[int] = None):
+        seeds = [seed + i for i in range(self.num_envs)]
+        return [env.seed(s) for env, s in zip(self.envs, seeds)]
+
+    def reset(self, **kwargs):
+        if "seed" in kwargs.keys():
+            seed = kwargs["seed"]
+            kwargs = [{**kwargs, 'seed': seed + i} for i in range(self.num_envs)]
+        else:
+            kwargs = [kwargs for _ in range(self.num_envs)]
+
+        assert len(kwargs) == len(self.envs)
+
+        return [env.reset(**args) for env, args in zip(self.envs, kwargs)]
+
+    def step(self, actions):
+        assert len(self.envs) == len(actions)
+        observations = []
+        rewards = []
+        dones = []
+        infos = []
+        for env, a in zip(self.envs, actions):
+            observation, reward, done, info = env.step(a)
+            if done:
+                observation = env.reset()
+
+            observations.append(observation)
+            rewards.append(reward)
+            dones.append(done)
+            infos.append(info)
+        return observations, rewards, dones, infos
+
+    def close(self):
+        for env in self.envs:
+            env.close()
+
+    def render(self, mode="human") -> Optional[Union[RenderFrame, List[RenderFrame]]]:
+        pass
+
+
 def atari_deepmind_env(env_name, max_episode_steps: int = None, noop_max: int = 30, frame_skip: int = 4,
                        episode_life: bool = True, clip_rewards: bool = True, frame_stack: int = 4,
                        scale: bool = True, patch_size: int = 84, grayscale: bool = True,
                        fire_reset: bool = True, render_mode: str = None):
-    env = gym.make(env_name, obs_type="rgb", render_mode=render_mode)
+    env = gym.make(env_name, obs_type="rgb", render_mode=render_mode, new_step_api=False)
     env = deepmind_atari_wrappers(env, max_episode_steps=max_episode_steps, noop_max=noop_max, frame_skip=frame_skip,
                                   episode_life=episode_life, clip_rewards=clip_rewards, frame_stack=frame_stack,
                                   scale=scale, patch_size=patch_size, grayscale=grayscale, fire_reset=fire_reset)
@@ -238,12 +290,15 @@ def vector_atari_deepmind_env(env_name, num_envs: int, max_episode_steps: int = 
                               episode_life: bool = True, clip_rewards: bool = True, frame_stack: int = 4,
                               scale: bool = True, patch_size: int = 84, grayscale: bool = True,
                               fire_reset: bool = True, render_mode: str = None):
-    make_env = lambda: atari_deepmind_env(env_name=env_name, max_episode_steps=max_episode_steps, noop_max=noop_max,
-                                          frame_skip=frame_skip, episode_life=episode_life,
-                                          clip_rewards=clip_rewards,
-                                          frame_stack=frame_stack, scale=scale, patch_size=patch_size,
-                                          grayscale=grayscale,
-                                          fire_reset=fire_reset, render_mode=render_mode)
-    env = AsyncVectorEnv([make_env for _ in range(num_envs)])
+    make_atari_deepmind_env = lambda: atari_deepmind_env(env_name=env_name, max_episode_steps=max_episode_steps,
+                                                         noop_max=noop_max,
+                                                         frame_skip=frame_skip, episode_life=episode_life,
+                                                         clip_rewards=clip_rewards,
+                                                         frame_stack=frame_stack, scale=scale,
+                                                         patch_size=patch_size,
+                                                         grayscale=grayscale,
+                                                         fire_reset=fire_reset, render_mode=render_mode)
+
+    env = VectorEnv(environment_maker=make_atari_deepmind_env, num_envs=num_envs)
 
     return env

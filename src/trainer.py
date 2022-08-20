@@ -14,7 +14,7 @@ import torch
 from src.wrappers import deepmind_atari_wrappers, vector_atari_deepmind_env, atari_deepmind_env
 
 
-@hydra.main(version_base=None, config_path="../config/", config_name="breakout_train")
+@hydra.main(version_base=None, config_path="../config/", config_name="train")
 def trainer(config: DictConfig) -> None:
     configuration = OmegaConf.to_object(config)
 

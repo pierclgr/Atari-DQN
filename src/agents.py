@@ -20,8 +20,8 @@ from tqdm.auto import tqdm
 from src.models import RLNetwork, DQNNetwork
 from src.buffers import ReplayBuffer
 from natsort import natsorted
-# from src.wrappers import VectorEnv
-from src.wrappers import SubprocVecEnv as VectorEnv
+from src.wrappers import VectorEnv
+# from src.wrappers import SubprocVecEnv as VectorEnv
 
 import signal
 
@@ -376,7 +376,7 @@ class TrainableExperienceReplayAgent(Agent):
                     f"buffered_train_average_episode_reward: {buf_average_reward}, "
                     f"buffered_test_average_episode_reward: {buf_test_average_reward}, "
                     f"train_episode_reward: {episode_reward}, "
-                    f"test_episode_reward: {test_episode_reward}"
+                    f"test_episode_reward: {test_episode_reward}, "
                     f"value_estimates: {value_estimate}"
                 )
             else:

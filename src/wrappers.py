@@ -14,6 +14,7 @@ import cv2
 from baselines.common.atari_wrappers import EpisodicLifeEnv, FireResetEnv, ClipRewardEnv
 from gym.vector.utils.spaces import batch_space
 from multiprocessing.connection import Connection
+from gym.vector.async_vector_env import AsyncVectorEnv
 
 
 class MaxAndSkipEnvCustom(gym.Wrapper):
@@ -339,6 +340,7 @@ def parallel_vector_atari_deepmind_env(env_name, num_envs: int, max_episode_step
                                                          patch_size=patch_size,
                                                          grayscale=grayscale,
                                                          fire_reset=fire_reset, render_mode=render_mode)
-    env = SubprocVecEnv([make_atari_deepmind_env for _ in range(num_envs)])
+    # env = SubprocVecEnv([make_atari_deepmind_env for _ in range(num_envs)])
+    env = AsyncVectorEnv([make_atari_deepmind_env for _ in range(num_envs)])
 
     return env

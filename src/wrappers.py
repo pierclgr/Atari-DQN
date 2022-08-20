@@ -273,6 +273,93 @@ class VectorEnv(gym.Env):
     def render(self, mode="human") -> Optional[Union[RenderFrame, List[RenderFrame]]]:
         pass
 
+def worker(remote, parent_remote, env_fn_wrapper):
+    parent_remote.close()
+    env = env_fn_wrapper.x()
+    while True:
+        cmd, arguments = remote.recv()
+        if cmd == 'step':
+            ob, reward, done, info = env.step(arguments)
+            if done:
+                ob = env.reset()
+            remote.send((ob, reward, done, info))
+        elif cmd == 'reset':
+            ob = env.reset(**arguments)
+            remote.send(ob)
+        elif cmd == 'reset_task':
+            ob = env.reset_task()
+            remote.send(ob)
+        elif cmd == 'close':
+            remote.close()
+            break
+        elif cmd == 'get_spaces':
+            remote.send((env.observation_space, env.action_space))
+        else:
+            raise NotImplementedError
+
+class SubprocVecEnv(VecEnv):
+    def __init__(self, env_fns, spaces=None):
+        """
+        envs: list of gym environments to run in subprocesses
+        """
+        self.waiting = False
+        self.closed = False
+        nenvs = len(env_fns)
+        self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
+        self.ps = [Process(target=worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
+                   for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]
+        for p in self.ps:
+            p.daemon = True  # if the main process crashes, we should not cause things to hang
+            p.start()
+        for remote in self.work_remotes:
+            remote.close()
+
+        self.remotes[0].send(('get_spaces', None))
+        observation_space, action_space = self.remotes[0].recv()
+
+        observation_space = batch_space(observation_space, n=nenvs)
+        action_space = batch_space(action_space, n=nenvs)
+
+        VecEnv.__init__(self, nenvs, observation_space, action_space)
+
+    def step_async(self, actions):
+        for remote, action in zip(self.remotes, actions):
+            remote.send(('step', action))
+        self.waiting = True
+
+    def step_wait(self):
+        results = [remote.recv() for remote in self.remotes]
+        self.waiting = False
+        obs, rews, dones, infos = zip(*results)
+        return np.stack(obs), np.stack(rews), np.stack(dones), infos
+
+    def reset(self, **kwargs):
+        if "seed" in kwargs.keys():
+            seed = kwargs["seed"]
+            remotes_kwargs = [{**kwargs, 'seed': seed + i} for i in range(self.num_envs)]
+        else:
+            remotes_kwargs = [kwargs for _ in range(self.num_envs)]
+        for remote, remote_kwargs in zip(self.remotes, remotes_kwargs):
+            remote.send(('reset', remote_kwargs))
+        return np.stack([remote.recv() for remote in self.remotes])
+
+    def reset_task(self):
+        for remote in self.remotes:
+            remote.send(('reset_task', None))
+        return np.stack([remote.recv() for remote in self.remotes])
+
+    def close(self):
+        if self.closed:
+            return
+        if self.waiting:
+            for remote in self.remotes:
+                remote.recv()
+        for remote in self.remotes:
+            remote.send(('close', None))
+        for p in self.ps:
+            p.join()
+        self.closed = True
+
 
 def atari_deepmind_env(env_name, max_episode_steps: int = None, noop_max: int = 30, frame_skip: int = 4,
                        episode_life: bool = True, clip_rewards: bool = True, frame_stack: int = 4,
@@ -299,6 +386,7 @@ def vector_atari_deepmind_env(env_name, num_envs: int, max_episode_steps: int = 
                                                          grayscale=grayscale,
                                                          fire_reset=fire_reset, render_mode=render_mode)
 
-    env = VectorEnv(environment_maker=make_atari_deepmind_env, num_envs=num_envs)
+    # env = VectorEnv(environment_maker=make_atari_deepmind_env, num_envs=num_envs)
+    env = SubprocVecEnv([make_atari_deepmind_env for _ in range(num_envs)])
 
     return env

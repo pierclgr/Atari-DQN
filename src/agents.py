@@ -20,7 +20,8 @@ from tqdm.auto import tqdm
 from src.models import RLNetwork, DQNNetwork
 from src.buffers import ReplayBuffer
 from natsort import natsorted
-from src.wrappers import VectorEnv
+# from src.wrappers import VectorEnv
+from src.wrappers import SubprocVecEnv as VectorEnv
 
 import signal
 

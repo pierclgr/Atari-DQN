@@ -17,7 +17,7 @@ from gym.wrappers import TimeLimit
 
 @hydra.main(version_base=None, config_path="../config/", config_name="train")
 def trainer(config: DictConfig) -> None:
-    # torch.multiprocessing.set_start_method('spawn')
+    torch.multiprocessing.set_start_method('spawn')
 
     configuration = OmegaConf.to_object(config)
 

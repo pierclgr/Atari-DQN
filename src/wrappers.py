@@ -386,7 +386,7 @@ def vector_atari_deepmind_env(env_name, num_envs: int, max_episode_steps: int = 
                                                          grayscale=grayscale,
                                                          fire_reset=fire_reset, render_mode=render_mode)
 
-    env = VectorEnv(environment_maker=make_atari_deepmind_env, num_envs=num_envs)
-    # env = SubprocVecEnv([make_atari_deepmind_env for _ in range(num_envs)])
+    # env = VectorEnv(environment_maker=make_atari_deepmind_env, num_envs=num_envs)
+    env = SubprocVecEnv([make_atari_deepmind_env for _ in range(num_envs)])
 
     return env

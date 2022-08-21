@@ -11,7 +11,7 @@ preprocessing:
 buffered_avg_reward_size: 100
 home_directory: /Users/pierclgr/PycharmProjects/AAS_project/
 env_name: BreakoutNoFrameskip-v4
-wandb_run_name: Test_Breakout_DobuleDQN
+wandb_run_name: Test_Breakout_DoubleDQN
 agent: DoubleDQNAgent
 model: DQNNetwork
 output_model_file: breakout_doubledqn_final_model

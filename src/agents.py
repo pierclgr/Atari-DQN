@@ -379,7 +379,7 @@ class TrainableExperienceReplayAgent(Agent):
             else:
                 # compute the test average reward
                 test_average_episode_reward = float(
-                    (test_total_reward_buffer / num_done_episodes) if num_done_episodes > 0 else 0)
+                    (test_total_reward_buffer / num_test_episodes) if num_test_episodes > 0 else 0)
                 buf_test_average_reward = float(np.mean(test_reward_buffer).item() if test_reward_buffer else 0)
 
             # if logging is required, we update it for every training step

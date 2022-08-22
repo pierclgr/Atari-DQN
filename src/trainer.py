@@ -9,7 +9,7 @@ from omegaconf import DictConfig, OmegaConf
 from src.wrappers import vector_atari_deepmind_env, atari_deepmind_env
 
 
-@hydra.main(version_base=None, config_path="../config/", config_name="breakout_train_dqn")
+@hydra.main(version_base=None, config_path="../config/", config_name="train")
 def trainer(config: DictConfig) -> None:
     """
     Function to train an agent with the parameters specified in the given configuration

@@ -23,7 +23,8 @@ def tester(config: DictConfig) -> None:
 
     # initialize logger if required
     if config.logging:
-        logger = WandbLogger(name=f"{config.wandb_run_name}", config=configuration)
+        logger = WandbLogger(name=config.wandb.run_name, config=configuration, project=config.wandb.project_name,
+                             entity=config.wandb.entity_name)
     else:
         logger = None
 

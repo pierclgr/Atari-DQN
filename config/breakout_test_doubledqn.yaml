@@ -11,13 +11,16 @@ preprocessing:
 buffered_avg_reward_size: 100
 home_directory: /Users/pierclgr/PycharmProjects/AAS_project/
 env_name: BreakoutNoFrameskip-v4
-wandb_run_name: Test_Breakout_DoubleDQN
+wandb:
+  run_name: Test_Breakout_DoubleDQN
+  project_name: AAS_project
+  entity_name: pierclgr
 agent: DoubleDQNAgent
 model: DQNNetwork
 output_model_file: breakout_doubledqn_final_model
 max_steps_per_episode: null
 logging: true
-in_colab: false
+in_colab: false # true
 test_video:
   file_name: test_breakout
   output_folder: test_videos/

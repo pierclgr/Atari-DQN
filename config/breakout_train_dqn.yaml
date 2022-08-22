@@ -23,7 +23,10 @@ checkpoint_every_n_gradient_steps: 10000
 test_every_n_gradient_steps: 2000
 home_directory: /Users/pierclgr/PycharmProjects/AAS_project/
 env_name: BreakoutNoFrameskip-v4
-wandb_run_name: Train_Breakout_DQN
+wandb:
+  run_name: Train_Breakout_DQN
+  project_name: AAS_project
+  entity_name: pierclgr
 checkpoint_file: breakout_dqn_checkpoint
 agent: DQNAgent
 model: DQNNetwork

@@ -1,8 +1,8 @@
 # DQN and Double DQN on Atari games
 
 <div style="text-align: center;">
-<img src="https://raw.githubusercontent.com/pierclgr/Atari-Deep-RL/main/test_videos/Breakout_DQN.gif" width="160" height="210" alt="Breakout DQN">
-<img src="https://raw.githubusercontent.com/pierclgr/Atari-Deep-RL/main/test_videos/Breakout_DoubleDQN.gif" width="160" height="210" alt="Breakout DoubleDQN">
+<img src="https://raw.githubusercontent.com/pierclgr/Atari-DQN/main/test_videos/Breakout_DQN.gif" width="160" height="210" alt="Breakout DQN">
+<img src="https://raw.githubusercontent.com/pierclgr/Atari-DQN/main/test_videos/Breakout_DoubleDQN.gif" width="160" height="210" alt="Breakout DoubleDQN">
 </div>
 
 ## Abstract 
@@ -11,7 +11,7 @@ The following project is a Python implementation of DQN and Double DQN algorithm
 performances of the twos in the videogame Breakout for Atari 2600. The scope of this project is thus to compare the two 
 algorithms showing the differences in performance and value estimates, along with the effects of the improvements that 
 Double DQN introduced over DQN.
-For more details, it is possible to check out the [project report](https://github.com/pierclgr/Atari-Deep-RL/blob/main/report/report.pdf).
+For more details, it is possible to check out the [project report](https://github.com/pierclgr/Atari-DQN/blob/main/report/report.pdf).
 
 ## Installation on a local machine or a server
 In order to install the repository and run training/experiments on your local machine, you first have to set up the 
@@ -72,7 +72,7 @@ You can use a file saved after the training to test the agent and watch it play.
 one to test DQN and one to test Double DQN, that are called `breakout_train_dqn.yaml` and `breakout_train_doubledqn.yaml` respectively. You thus need to do some changes to the testing configuration file:
 1. Change the Wandb logging field the same way you did with training if you want to use logging, otherwise just disable it as you did in the training configuration
 2. Change the field `output_model_file` if you changed the name of the output file during training
-3. Make sure that the output model file that you want to use is in the folder `trained_models` folder in the root directory of the repository
+3. Make sure that the output model file that you want to use is in the folder `trained_models` in the root directory of the repository
 4. Make sure that the testing configuration file that you want to use is in the `config` folder in the root directory of the repository
 
 After you do this, you have to:
@@ -84,3 +84,29 @@ python src/tester.py --config-name=your_testing_configuration_file_name
 ```
 
 If you did everything correctly, the testing will start and you will see the agent playing on you screen. Hit `CTRL+C` in your terminal when you want to stop playing.
+
+## Installation on Google Colab
+If you wish to run training or testing on Google Colab, you can just open the `colab_notebook.ipynb` notebook in Colab by clicking the button in the top of the notebook. 
+After you did this, execute the first code cell: it will clone the repository and install the required libraries.
+
+#### Training
+Follow the steps that are shown in the Training section related to installation on servers or local machines. We also suggest to train for less than 12 hours in order to avoid Colab crashes or timeouts and keep the output model saved in Colab's memory. As an alternative, you can mount you Google Drive and save 
+the trained model there also for future testings or trainings. If you use a different configuration file name, change the code in the cell block by changing the `--config-name` argument to the name of your training configuration file. Make sure to use GPU backend to train faster.
+```shell
+!cd Atari-DQN && python src/trainer.py --config-name=your_training_configuration_file_name home_directory=/content/Atari-DQN/
+```
+
+#### Testing
+Follow the steps that are shown in the Testing section related to installation on servers or local machines. In addition, make sure that the field `in_colab` is set to `false`.
+If you use a different configuration file name, change the code in the cell block by changing the `--config-name` argument to the name of your testing configuration file.
+```shell
+!cd Atari-DQN && python src/tester.py --config-name=your_testing_configuration_file_name home_directory=/content/Atari-DQN/
+```
+
+## Configuration file override
+If you don't want to change the configuration files directly, you can simply override the values of the configuration file when launching the training/testing commands. To do so, you just need to add as an argument the name of the field of the configuration than you want to change and its value.
+
+For example, if you want to override the `output_model_file` field without changing directly the configuration, you can launch the following command
+```shell
+python src/trainer.py --config-name=your_training_configuration_file_name output_model_file=your_custom_output_file_name
+```

@@ -120,10 +120,10 @@ If you don't want to change the configuration files directly or write a new conf
 
 For example, if you want to override the `output_model_file` field without changing directly the configuration, you can launch the following command
 ```shell
-python src/trainer.py --config-name=<your training configuration filename> output_model_file=your_custom_output_file_name
+python src/trainer.py --config-name=<your training configuration filename> output_model_file=<your custom output filename>
 ```
 
-You can override any field of the configuration by appending at the end of the previous command the `field_name=field_value` argument for the desired field.
+You can override any field of the configuration by appending at the end of the previous command the `<field name>=<field value>` argument for the desired field.
 
 ## Results
 It is possible to see the results of the two experiments either on the [project report](https://github.com/pierclgr/Atari-DQN/blob/main/report/report.pdf) or on our [Wandb project page](https://wandb.ai/pierclgr/AAS_project).

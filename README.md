@@ -65,7 +65,7 @@ In order to run a training experiment, you have to do some changes to the config
 Afer you do this, you have to:
 1. Open a terminal in the repository directory
 2. Activate the environment created before
-3. Launch the following command by specifiying your training configuration file name (without the extension) in the argument `--config-name`
+3. Launch the following command by specifiying your training configuration file name (without the file format) in the argument `--config-name`
 ```shell
 python src/trainer.py --config-name=<your training configuration filename>
 ```
@@ -75,20 +75,20 @@ logging or create a new one. We suggest to use the already created project. More
 the instructions that are outputted in the console.
 
 After you complete a training successfully, the program will save the model weights into a `.pt` file in the folder `trained_models` in the root directory of the repository. You can change the name of the output file by modifying the field
-`output_model_file` in the configuration file.
+`output_model_file` in the configuration file (do not include the file format).
 
 #### Testing
 You can use a file saved after the training to test the agent and watch it play. In order to test the trained agent, you have to configure a configuration file that is similar to the one for training. Again, we are providing also two files, 
 one to test DQN and one to test Double DQN, that are called `breakout_test_dqn.yaml` and `breakout_test_doubledqn.yaml` respectively. You thus need to do some changes to the testing configuration file:
 1. Change the Wandb logging field the same way you did with training if you want to use logging, otherwise just disable it as you did in the training configuration
-2. Change the field `output_model_file` if you changed the name of the output file during training
+2. Change the field `output_model_file` if you changed the name of the output file during training (do not include the file format)
 3. Make sure that the output model file that you want to use is in the folder `trained_models` in the root directory of the repository
 4. Make sure that the testing configuration file that you want to use is in the `config` folder in the root directory of the repository
 
 After you do this, you have to:
 1. Open a terminal in the repository directory
 2. Activate the environment created before
-3. Launch the following command by specifying your testing configuration file name (without the extension) in the argument `--config-name`
+3. Launch the following command by specifying your testing configuration file name (without the file format) in the argument `--config-name`
 ```shell
 python src/tester.py --config-name=<your testing configuration filename>
 ```

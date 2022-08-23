@@ -16,6 +16,7 @@ For more details, it is possible to check out the [project report](https://githu
 ## Installation on a local machine or a server
 
 ### Python environment
+
 In order to install the repository and run training/testing experiments on your local machine, you first have to set up the 
 python environment: 
 1. Clone the repository using `git` with the command
@@ -29,6 +30,7 @@ pip install -r requirements.txt
 ```
 
 ### Import ROMs
+
 You also need to download and import the Atari ROMs for the emulator, that are not provided anymore with Gym. In order to import ROMS, you need to download Roms.rar from the [Atari 2600 VCS ROM Collection](http://www.atarimania.com/roms/Roms.rar) and extract the .rar file. Once you've done that, run:
 
 ```shell

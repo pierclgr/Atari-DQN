@@ -14,7 +14,7 @@ from gym.vector.utils import batch_space
 #                                     MODIFIED ATARI BASELINE WRAPPERS                                                 #
 ########################################################################################################################
 # All these wrappers are taken from OpenAI's Gym Baseline library. We copy-pasted them instead of simply importing
-# because we needed to do some small notifications, for example to allow to use a seed when resetting the environment,
+# because we needed to do some small modifications, for example to allow to use a seed when resetting the environment,
 # feature that we use for reproducibility
 
 class MaxAndSkipEnvCustom(gym.Wrapper):

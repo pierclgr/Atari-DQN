@@ -110,3 +110,6 @@ For example, if you want to override the `output_model_file` field without chang
 ```shell
 python src/trainer.py --config-name=your_training_configuration_file_name output_model_file=your_custom_output_file_name
 ```
+
+## Results
+It is possible to see the results of the two experiments either on the [project report](https://github.com/pierclgr/Atari-DQN/blob/main/report/report.pdf) or on our [Wandb project page](https://wandb.ai/pierclgr/AAS_project).

@@ -87,18 +87,18 @@ If you did everything correctly, the testing will start and you will see the age
 
 ## Installation on Google Colab
 If you wish to run training or testing on Google Colab, you can just open the `colab_notebook.ipynb` notebook in Colab by clicking the button in the top of the notebook. 
-After you did this, execute the first code cell: it will clone the repository and install the required libraries.
+After you did this, execute the first code block: it will clone the repository and install the required libraries.
 
 #### Training
 Follow the steps that are shown in the Training section related to installation on servers or local machines. We also suggest to train for less than 12 hours in order to avoid Colab crashes or timeouts and keep the output model saved in Colab's memory. As an alternative, you can mount you Google Drive and save 
-the trained model there also for future testings or trainings. If you use a different configuration file name, change the code in the cell block by changing the `--config-name` argument to the name of your training configuration file. Make sure to use GPU backend to train faster.
+the trained model there also for future testings or trainings. If you use a different configuration file name, change the code in the second code block by changing the `--config-name` argument to the name of your training configuration file. Make sure to use GPU backend to train faster.
 ```shell
 !cd Atari-DQN && python src/trainer.py --config-name=your_training_configuration_file_name home_directory=/content/Atari-DQN/
 ```
 
 #### Testing
 Follow the steps that are shown in the Testing section related to installation on servers or local machines. In addition, make sure that the field `in_colab` is set to `false`.
-If you use a different configuration file name, change the code in the cell block by changing the `--config-name` argument to the name of your testing configuration file.
+If you use a different configuration file name, change the code in the third code block by changing the `--config-name` argument to the name of your testing configuration file.
 ```shell
 !cd Atari-DQN && python src/tester.py --config-name=your_testing_configuration_file_name home_directory=/content/Atari-DQN/
 ```

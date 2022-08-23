@@ -14,6 +14,8 @@ Double DQN introduced over DQN.
 For more details, it is possible to check out the [project report](https://github.com/pierclgr/Atari-DQN/blob/main/report/report.pdf).
 
 ## Installation on a local machine or a server
+
+### Python environment
 In order to install the repository and run training/testing experiments on your local machine, you first have to set up the 
 python environment: 
 1. Clone the repository using `git` with the command
@@ -26,7 +28,15 @@ git clone https://github.com/pierclgr/Atari-DQN
 pip install -r requirements.txt
 ```
 
+### Import ROMs
+You also need to download and import the Atari ROMs for the emulator, that are not provided anymore with Gym. In order to import ROMS, you need to download Roms.rar from the [Atari 2600 VCS ROM Collection](http://www.atarimania.com/roms/Roms.rar) and extract the .rar file. Once you've done that, run:
+
+```shell
+python -m atari_py.import_roms <path to rom folder>
+```
+
 Once you do this, you're set to go and you have a Python environment with all the required packages to use for the experiments.
+
 
 ### Running experiments
 Each experiment is associated with a Hydra `.yaml` configuration file. If you need more infos about hydra and its 
@@ -57,7 +67,7 @@ Afer you do this, you have to:
 2. Activate the environment created before
 3. Launch the following command by specifiying your training configuration file name (without the extension) in the argument `--config-name`
 ```shell
-python src/trainer.py --config-name=your_training_configuration_file_name
+python src/trainer.py --config-name=<your training configuration filename>
 ```
 
 If you did everything correctly, the training will start. If you set up logging with Wandb, at the beginning of you first run with logging you will be required to specify if to consider an existing Wandb project for 
@@ -80,7 +90,7 @@ After you do this, you have to:
 2. Activate the environment created before
 3. Launch the following command by specifying your testing configuration file name (without the extension) in the argument `--config-name`
 ```shell
-python src/tester.py --config-name=your_testing_configuration_file_name
+python src/tester.py --config-name=<your testing configuration filename>
 ```
 
 If you did everything correctly, the testing will start and you will see the agent playing on you screen. Hit `CTRL+C` in your terminal when you want to stop playing.
@@ -93,14 +103,14 @@ After you did this, execute the first code block: it will clone the repository a
 Follow the steps that are shown in the Training section related to installation on servers or local machines. We also suggest to train for less than 12 hours in order to avoid Colab crashes or timeouts and keep the output model saved in Colab's memory. As an alternative, you can mount you Google Drive and save 
 the trained model there also for future testings or trainings. If you use a different configuration file name, change the code in the second code block by changing the `--config-name` argument to the name of your training configuration file. Make sure to use GPU backend to train faster.
 ```shell
-!cd Atari-DQN && python src/trainer.py --config-name=your_training_configuration_file_name home_directory=/content/Atari-DQN/
+!cd Atari-DQN && python src/trainer.py --config-name=<your training configuration filename> home_directory=/content/Atari-DQN/
 ```
 
 #### Testing
-Follow the steps that are shown in the Testing section related to installation on servers or local machines. In addition, make sure that the field `in_colab` if the configuration file is set to `false`.
+Follow the steps that are shown in the Testing section related to installation on servers or local machines. In addition, make sure that the field `in_colab` in the configuration file is set to `false`.
 If you use a different configuration file name, change the code in the third code block by changing the `--config-name` argument to the name of your testing configuration file.
 ```shell
-!cd Atari-DQN && python src/tester.py --config-name=your_testing_configuration_file_name home_directory=/content/Atari-DQN/
+!cd Atari-DQN && python src/tester.py --config-name=<your testing configuration filename> home_directory=/content/Atari-DQN/
 ```
 
 ## Configuration file override
@@ -108,7 +118,7 @@ If you don't want to change the configuration files directly or write a new conf
 
 For example, if you want to override the `output_model_file` field without changing directly the configuration, you can launch the following command
 ```shell
-python src/trainer.py --config-name=your_training_configuration_file_name output_model_file=your_custom_output_file_name
+python src/trainer.py --config-name=<your training configuration filename> output_model_file=your_custom_output_file_name
 ```
 
 You can override any field of the configuration by appending at the end of the previous command the `field_name=field_value` argument for the desired field.

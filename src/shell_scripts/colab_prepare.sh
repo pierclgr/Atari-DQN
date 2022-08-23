@@ -1,7 +1,7 @@
 echo "Installing packages for colab..."
 
 # install repo package
-cd /content/Atari-Deep-RL
+cd /content/Atari-DQN
 pip install -e .
 pip install -r requirements.txt
 cd /content/

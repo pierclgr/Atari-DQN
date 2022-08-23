@@ -21,12 +21,12 @@ python environment:
 git clone https://github.com/pierclgr/Atari-DQN
 ```
 2. Open a terminal in the repository directory
-3. Create a Python 3.7.13 environment and install the packages using the file `requirements.txt` using `pip` and the command
+3. Create a Python 3.7.13 environment and install the packages using the file `requirements.txt` and `pip` with the command
 ```shell
 pip install -r requirements.txt
 ```
 
-Once you do this, you're set to go and you have a Python environment with all the required packages.
+Once you do this, you're set to go and you have a Python environment with all the required packages to use for the experiments.
 
 ### Running experiments
 Each experiment is associated with a Hydra `.yaml` configuration file. If you need more infos about hydra and its 

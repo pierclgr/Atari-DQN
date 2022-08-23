@@ -14,7 +14,7 @@ Double DQN introduced over DQN.
 For more details, it is possible to check out the [project report](https://github.com/pierclgr/Atari-DQN/blob/main/report/report.pdf).
 
 ## Installation on a local machine or a server
-In order to install the repository and run training/experiments on your local machine, you first have to set up the 
+In order to install the repository and run training/testing experiments on your local machine, you first have to set up the 
 python environment: 
 1. Clone the repository using `git` with the command
 ```shell

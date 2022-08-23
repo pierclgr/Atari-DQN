@@ -97,14 +97,14 @@ the trained model there also for future testings or trainings. If you use a diff
 ```
 
 #### Testing
-Follow the steps that are shown in the Testing section related to installation on servers or local machines. In addition, make sure that the field `in_colab` is set to `false`.
+Follow the steps that are shown in the Testing section related to installation on servers or local machines. In addition, make sure that the field `in_colab` if the configuration file is set to `false`.
 If you use a different configuration file name, change the code in the third code block by changing the `--config-name` argument to the name of your testing configuration file.
 ```shell
 !cd Atari-DQN && python src/tester.py --config-name=your_testing_configuration_file_name home_directory=/content/Atari-DQN/
 ```
 
 ## Configuration file override
-If you don't want to change the configuration files directly, you can simply override the values of the configuration file when launching the training/testing commands. To do so, you just need to add as an argument the name of the field of the configuration than you want to change and its value.
+If you don't want to change the configuration files directly or write a new configuration file, you can simply override the values of an already existing configuration file when launching the training/testing commands. To do so, you just need to add as an argument the name of the field of the configuration than you want to change and its value.
 
 For example, if you want to override the `output_model_file` field without changing directly the configuration, you can launch the following command
 ```shell

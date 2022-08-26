@@ -658,7 +658,7 @@ class TrainableExperienceReplayAgent(Agent):
             file_path = f"{trained_model_path}{filename}"
             if os.path.isfile(file_path):
                 print(f"Loading model from {filename}...")
-                checkpoint = torch.load(file_path)
+                checkpoint = torch.load(file_path, map_location=torch.device("cpu"))
                 self.q_function.load_state_dict(checkpoint['model_weights'])
             else:
                 print("The specified file does not exist in the trained models directory.")

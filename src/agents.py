@@ -1052,7 +1052,7 @@ class DQNAgent(TrainableExperienceReplayAgent):
 
 class DoubleDQNAgent(DQNAgent):
     """
-    Class that describes an agent learning using the DQN algorithm, subclass of DQNAgent
+    Class that describes an agent learning using the Double DQN algorithm, subclass of DQNAgent
     """
 
     def __init__(self, **kwargs) -> None:
